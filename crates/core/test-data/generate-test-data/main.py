@@ -120,8 +120,13 @@ def main():
 
     csr_adata = ad.AnnData(csr_matrix(counts, dtype=np.float32))
     csc_adata = ad.AnnData(csc_matrix(counts, dtype=np.float32))
+    dense_adata = ad.AnnData(counts)
 
-    for name, adata in [("csr_adata", csr_adata), ("csc_adata", csc_adata)]:
+    for name, adata in [
+        ("csr_adata", csr_adata),
+        ("csc_adata", csc_adata),
+        ("dense_adata", dense_adata),
+    ]:
         adata.obs_names = [f"cell_{i}" for i in range(n_cells)]
         adata.obs["annotation"] = (["group1"] * 5) + (["group2"] * 5)
 
