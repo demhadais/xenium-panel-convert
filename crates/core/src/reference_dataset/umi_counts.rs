@@ -1,5 +1,7 @@
+use std::{convert::identity, ops::Sub};
+
 use hdf5_metno::{Dataset, File, Group};
-use ndarray::ArrayView2;
+use ndarray::{Array2, ArrayView2, Axis};
 use serde::Serialize;
 use sprs::CsMatBase;
 
@@ -7,9 +9,11 @@ use crate::reference_dataset::umi_counts::encoding_type::{DenseEncodingType, Spa
 
 mod encoding_type;
 
-pub type UmiCounts = CsMatBase<i32, usize, Vec<usize>, Vec<usize>, Vec<i32>>;
+type UmiCounts = CsMatBase<i32, usize, Vec<usize>, Vec<usize>, Vec<i32>>;
 
-pub fn read_umi_counts_from_h5ad(file: &File) -> Result<UmiCounts, Error> {
+pub struct RawUmiCounts(UmiCounts);
+
+pub fn read_umi_counts_from_h5ad(file: &File) -> Result<RawUmiCounts, Error> {
     const X: &str = "X";
     // The actual counts (stored by scanpy as the highly-descriptive name "X") are usually stored as in compressed-sparse matrix format in a group, but they might also be in a dataset
     match file.group(X) {
@@ -18,7 +22,7 @@ pub fn read_umi_counts_from_h5ad(file: &File) -> Result<UmiCounts, Error> {
     }
 }
 
-fn read_x_group(x: &Group) -> Result<UmiCounts, Error> {
+fn read_x_group(x: &Group) -> Result<RawUmiCounts, Error> {
     let encoding_type = SparseEncodingType::from_group(x)?;
 
     let data = x.dataset("data").and_then(|ds| ds.read_raw())?;
@@ -36,21 +40,26 @@ fn read_x_group(x: &Group) -> Result<UmiCounts, Error> {
         SparseEncodingType::CscMatrix => UmiCounts::new_csc(shape, indptr, indices, data),
     };
 
-    Ok(counts)
+    validate_total_counts_are_different_sparse(&counts)?;
+
+    Ok(RawUmiCounts(counts))
 }
 
-fn read_x_dataset(x: &Dataset) -> Result<UmiCounts, Error> {
-    match DenseEncodingType::from_dataset(x)? {
-        DenseEncodingType::Array => (),
+fn read_x_dataset(x: &Dataset) -> Result<RawUmiCounts, Error> {
+    let encoding_type = DenseEncodingType::from_dataset(x)?;
+    let data = match encoding_type {
+        DenseEncodingType::Array => x.read_2d()?,
     };
 
-    let data = x.read_2d()?;
+    validate_total_counts_are_different_dense(&data)?;
+
     let shape = data.raw_dim();
 
     let data: Vec<_> = data.into_iter().map(f32_to_i32).collect::<Result<_, _>>()?;
 
     Ok(ArrayView2::from_shape(shape, &data)
         .map(|a| UmiCounts::csc_from_dense(a, 0))
+        .map(RawUmiCounts)
         .expect("it's the same array, so it has the same shape"))
 }
 
@@ -65,10 +74,50 @@ fn f32_to_i32(f: f32) -> Result<i32, Error> {
     }
 }
 
+fn validate_total_counts_are_different_dense(counts: &Array2<f32>) -> Result<(), Error> {
+    let cell_sums = counts.sum_axis(Axis(1));
+    let Some(first_nonzero) = cell_sums.first().copied() else {
+        return Err(Error::EmptyCounts);
+    };
+
+    let is_different_from_first = |f: f32| {
+        let diff: f32 = first_nonzero - f;
+        diff.abs() > 1.
+    };
+
+    let mut cell_sums = cell_sums.into_iter();
+    // Advance the iterator because obviously the first element will cause this function to fail
+    cell_sums.next();
+
+    // Write this check using Iterator::any so we can short-circuit on success
+    if cell_sums.any(is_different_from_first) {
+        Ok(())
+    } else {
+        Err(Error::NormalizedCounts)
+    }
+}
+
+fn validate_total_counts_are_different_sparse(counts: &UmiCounts) -> Result<(), Error> {
+    let mut cell_sums = counts
+        .outer_iterator()
+        .map(|cell| cell.data().iter().sum::<i32>());
+    let Some(first) = cell_sums.next() else {
+        return Err(Error::EmptyCounts);
+    };
+
+    if cell_sums.any(|s| s != first) {
+        Ok(())
+    } else {
+        Err(Error::NormalizedCounts)
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum Error {
+    EmptyCounts,
     TransformedCounts,
+    NormalizedCounts,
     Hdf5 { reason: String },
     UnknownEncodingType,
 }
@@ -85,7 +134,13 @@ impl From<hdf5_metno::Error> for Error {
 mod tests {
     use hdf5_metno::File;
 
-    use crate::reference_dataset::umi_counts::read_umi_counts_from_h5ad;
+    use crate::reference_dataset::umi_counts::{RawUmiCounts, read_umi_counts_from_h5ad};
+
+    impl RawUmiCounts {
+        fn data(&self) -> &[i32] {
+            self.0.data()
+        }
+    }
 
     #[test]
     fn read_sparse_h5ad_files() {
