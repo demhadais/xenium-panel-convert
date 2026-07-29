@@ -10,6 +10,7 @@ repository = "https://github.com/demhadais/xenium-panel-validate"
 version = "0.3.0"
 description = "A library and CLI for validating the inputs for a Xenium panel design at the SCBL at The Jackson Laboratory."
 readme = "README.md"
+profile.release = { lto = true, codegen-units = 1 }
 
 [workspace.dependencies]
 anyhow = "1.0.102"

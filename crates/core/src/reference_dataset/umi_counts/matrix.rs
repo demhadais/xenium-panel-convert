@@ -1,20 +1,22 @@
 use ndarray::{Array2, ArrayView2};
 use sprs::CsMatI;
 
-use super::f32_to_i32;
-
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RawCscUmiCounts(CscMatrix);
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct CscMatrix(Matrix);
 
 impl CsrMatrix {
-    pub fn new(shape: (usize, usize), indptr: Vec<u32>, indices: Vec<u32>, data: Vec<i32>) -> Self {
+    pub fn new(shape: (usize, usize), indptr: Vec<u32>, indices: Vec<u32>, data: Vec<f32>) -> Self {
         Self(Matrix::new(shape, indptr, indices, data))
     }
 
     pub fn into_raw_umi_counts(self) -> Result<RawCscUmiCounts, super::Error> {
+        for f in self.0.data() {
+            validate_f32_is_integral(*f)?;
+        }
+
         self.validate_cell_sums_differ()?;
 
         Ok(RawCscUmiCounts(CscMatrix(self.0.into_csc())))
@@ -25,7 +27,7 @@ impl CsrMatrix {
 
         let mut total_counts_by_cell = mtx
             .outer_iterator()
-            .map(|cell| cell.data().iter().sum::<i32>());
+            .map(|cell| cell.data().iter().sum::<f32>());
 
         let Some(first) = total_counts_by_cell.next() else {
             return Err(super::Error::EmptyCounts);
@@ -40,38 +42,48 @@ impl CsrMatrix {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct CsrMatrix(Matrix);
 
 impl CscMatrix {
-    pub fn new(shape: (usize, usize), indptr: Vec<u32>, indices: Vec<u32>, data: Vec<i32>) -> Self {
+    pub fn new(shape: (usize, usize), indptr: Vec<u32>, indices: Vec<u32>, data: Vec<f32>) -> Self {
         Self(Matrix::new_csc(shape, indptr, indices, data))
     }
 
     pub fn from_dense(counts: &Array2<f32>) -> Result<Self, super::Error> {
-        let data: Vec<_> = counts
-            .iter()
-            .copied()
-            .map(f32_to_i32)
-            .collect::<Result<_, _>>()?;
+        for f in counts.iter() {
+            validate_f32_is_integral(*f)?;
+        }
 
-        let counts = ArrayView2::from_shape(counts.dim(), &data)
-            .expect("it's the same array, so it has the same shape");
-
-        Ok(Self(Matrix::csc_from_dense(counts, 0)))
+        Ok(Self(Matrix::csc_from_dense(counts.view(), 0.)))
     }
 
     pub fn into_raw_umi_counts(self) -> Result<RawCscUmiCounts, super::Error> {
+        let mtx = self.0;
+        for f in mtx.data() {
+            validate_f32_is_integral(*f)?;
+        }
+
         // This looks shitty because we are converting to a CSR, which then converts
         // back to a CSC (so that we can reuse code we've already written). These
         // conversions are actually kind of expensive and use a lot of memory, but for
         // real datasets, it's around 0.5 GB more of memory
-        let mtx = self.0;
         CsrMatrix(mtx.into_csr()).into_raw_umi_counts()
     }
 }
 
-type Matrix = CsMatI<i32, u32>;
+fn validate_f32_is_integral(f: f32) -> Result<(), super::Error> {
+    let is_integer = f.round() == f;
+    let is_nonnegative = f >= 0.0;
+
+    if is_integer && is_nonnegative {
+        Ok(())
+    } else {
+        Err(super::Error::TransformedCounts)
+    }
+}
+
+type Matrix = CsMatI<f32, u32>;
 
 #[cfg(test)]
 mod tests {
@@ -83,21 +95,21 @@ mod tests {
     };
 
     impl RawCscUmiCounts {
-        pub fn data(&self) -> &[i32] {
+        pub fn data(&self) -> &[f32] {
             self.0.0.data()
         }
     }
 
-    fn counts() -> Array2<i32> {
-        array![[0, 1, 2], [2, 4, 6]]
+    fn counts() -> Array2<f32> {
+        array![[0., 1., 2.], [2., 4., 6.]]
     }
 
     fn csr() -> CsrMatrix {
-        CsrMatrix(Matrix::csr_from_dense(counts().view(), 0))
+        CsrMatrix(Matrix::csr_from_dense(counts().view(), 0.))
     }
 
     fn csc() -> CscMatrix {
-        CscMatrix(Matrix::csc_from_dense(counts().view(), 0))
+        CscMatrix(Matrix::csc_from_dense(counts().view(), 0.))
     }
 
     #[test]
@@ -114,9 +126,9 @@ mod tests {
     #[test]
     fn equal_cell_sums_return_normalized_error() {
         // Both cells sum to 3
-        let normalized_counts = array![[0, 1, 2], [1, 1, 1]];
-        let csr = CsrMatrix(Matrix::csr_from_dense(normalized_counts.view(), 0));
-        let csc = CscMatrix(Matrix::csc_from_dense(normalized_counts.view(), 0));
+        let normalized_counts = array![[0., 1., 2.], [1., 1., 1.]];
+        let csr = CsrMatrix(Matrix::csr_from_dense(normalized_counts.view(), 0.));
+        let csc = CscMatrix(Matrix::csc_from_dense(normalized_counts.view(), 0.));
 
         std::assert_matches!(csr.into_raw_umi_counts(), Err(Error::NormalizedCounts));
         std::assert_matches!(csc.into_raw_umi_counts(), Err(Error::NormalizedCounts));

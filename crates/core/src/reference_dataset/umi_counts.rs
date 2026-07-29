@@ -25,7 +25,6 @@ fn read_x_group(x: &Group) -> Result<RawCscUmiCounts, Error> {
     let encoding_type = SparseEncodingType::from_group(x)?;
 
     let data = x.dataset("data").and_then(|ds| ds.read_raw())?;
-    let data = data.into_iter().map(f32_to_i32).collect::<Result<_, _>>()?;
 
     let indptr: Vec<u32> = x.dataset("indptr").and_then(|ds| ds.read_raw())?;
     let indices: Vec<u32> = x.dataset("indices").and_then(|ds| ds.read_raw())?;
@@ -53,17 +52,6 @@ fn read_x_dataset(x: &Dataset) -> Result<RawCscUmiCounts, Error> {
     };
 
     CscMatrix::from_dense(&counts)?.into_raw_umi_counts()
-}
-
-fn f32_to_i32(f: f32) -> Result<i32, Error> {
-    let is_integer = f.round() == f;
-    let is_nonnegative = f >= 0.0;
-
-    if is_integer && is_nonnegative {
-        Ok(f as i32)
-    } else {
-        Err(Error::TransformedCounts)
-    }
 }
 
 #[derive(Debug, Serialize, thiserror::Error)]
@@ -114,7 +102,7 @@ mod tests {
             if filename.contains("adata") {
                 assert_eq!(
                     counts.data()[0],
-                    10,
+                    10.,
                     "first entry in UMI counts of {filename} != 10"
                 );
             }
