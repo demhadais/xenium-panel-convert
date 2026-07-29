@@ -1,5 +1,3 @@
-use std::{convert::identity, ops::Sub};
-
 use hdf5_metno::{Dataset, File, Group};
 use ndarray::{Array2, ArrayView2, Axis};
 use serde::Serialize;
@@ -112,13 +110,18 @@ fn validate_total_counts_are_different_sparse(counts: &UmiCounts) -> Result<(), 
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, thiserror::Error)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum Error {
+    #[error("empty UMI counts")]
     EmptyCounts,
+    #[error("transformed UMI counts")]
     TransformedCounts,
+    #[error("normalized UMI counts")]
     NormalizedCounts,
+    #[error("HDF5 error: {reason}")]
     Hdf5 { reason: String },
+    #[error("unknown encoding type")]
     UnknownEncodingType,
 }
 

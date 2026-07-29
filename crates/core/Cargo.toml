@@ -17,6 +17,7 @@ hdf5-metno.workspace = true
 ndarray.workspace = true
 sprs.workspace = true
 strum.workspace = true
+thiserror.workspace = true
 
 [build-dependencies]
 noodles.workspace = true

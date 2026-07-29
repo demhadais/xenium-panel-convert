@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs};
 
-use anyhow::Context;
-use camino::Utf8Path;
+use anyhow::{Context, anyhow};
+use camino::{Utf8Path, Utf8PathBuf};
 use xenium_panel_validate_core::gene_list::{
     ParsedTargetList,
     chemistry::{
@@ -13,26 +13,28 @@ use xenium_panel_validate_core::gene_list::{
 
 #[allow(clippy::missing_errors_doc)]
 pub fn parse_target_list_from_file(
-    target_path: &Utf8Path,
-    species: Species,
-    chemistry: Chemistry,
-    field_alias_path: Option<&Utf8Path>,
-    field_aliases: &[(String, String)],
+    CommandlineArgs {
+        target_path,
+        species,
+        chemistry,
+        field_alias_path,
+        field_aliases,
+    }: &CommandlineArgs,
 ) -> anyhow::Result<ParsedTargetList> {
     let target_list = fs::read_to_string(target_path)
         .context(format!("failed to read target-list from {target_path}"))?;
 
-    let field_alias_file_contents =
-        field_alias_path
-            .map(fs::read)
-            .transpose()
-            .with_context(|| {
-                if let Some(field_alias_path) = field_alias_path {
-                    format!("failed to read field aliases from {field_alias_path}")
-                } else {
-                    "failed to read field aliases".to_owned()
-                }
-            })?;
+    let field_alias_file_contents = field_alias_path
+        .as_ref()
+        .map(fs::read)
+        .transpose()
+        .with_context(|| {
+            if let Some(field_alias_path) = field_alias_path {
+                format!("failed to read field aliases from {field_alias_path}")
+            } else {
+                "failed to read field aliases".to_owned()
+            }
+        })?;
 
     let field_aliases = read_field_aliases(field_alias_file_contents.as_deref(), field_aliases)
         .with_context(|| {
@@ -55,6 +57,25 @@ pub fn parse_target_list_from_file(
         &field_aliases,
         ensembl_id_to_gene,
     )?)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, clap::Args)]
+pub struct CommandlineArgs {
+    target_path: Utf8PathBuf,
+    #[clap(long, short)]
+    species: Species,
+    #[clap(long, short)]
+    chemistry: Chemistry,
+    #[clap(long, short = 'p')]
+    field_alias_path: Option<Utf8PathBuf>,
+    #[clap(long, short = 'a', value_parser = parse_field_aliases)]
+    field_aliases: Vec<(String, String)>,
+}
+
+fn parse_field_aliases(s: &str) -> anyhow::Result<(String, String)> {
+    s.split_once('=')
+        .map(|(alias, field)| (alias.to_owned(), field.to_owned()))
+        .ok_or_else(|| anyhow!("field aliases must be specified as '<ALIAS>=<FIELD>'"))
 }
 
 fn read_field_aliases<'a>(

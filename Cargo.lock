@@ -2566,6 +2566,7 @@ dependencies = [
  "serde_json",
  "sprs",
  "strum",
+ "thiserror",
  "tokio",
  "toml",
  "url",
