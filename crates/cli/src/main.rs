@@ -28,7 +28,7 @@ fn main() -> anyhow::Result<()> {
 
             write_report(&parsed_targets, output.as_deref())?;
         }
-        Cli::ReferenceDatasets { args, common } => {
+        Cli::References { args, common } => {
             let results = validate_reference_datasets(&args)?;
             // REMOVE!
             for r in results {
@@ -58,7 +58,7 @@ enum Cli {
         #[clap(flatten)]
         common: CommonOptions,
     },
-    ReferenceDatasets {
+    References {
         #[clap(flatten)]
         args: reference_datasets::CommandlineArgs,
         #[clap(flatten)]

@@ -1,17 +1,17 @@
 use hdf5_metno::{Dataset, File, Group};
+pub use matrix::RawCscUmiCounts;
 use ndarray::{Array2, ArrayView2, Axis};
 use serde::Serialize;
-use sprs::CsMatBase;
 
-use crate::reference_dataset::umi_counts::encoding_type::{DenseEncodingType, SparseEncodingType};
+use crate::reference_dataset::umi_counts::{
+    encoding_type::{DenseEncodingType, SparseEncodingType},
+    matrix::{CscMatrix, CsrMatrix},
+};
 
 mod encoding_type;
+mod matrix;
 
-type UmiCounts = CsMatBase<i32, usize, Vec<usize>, Vec<usize>, Vec<i32>>;
-
-pub struct RawUmiCounts(UmiCounts);
-
-pub fn read_umi_counts_from_h5ad(file: &File) -> Result<RawUmiCounts, Error> {
+pub fn read_umi_counts_from_h5ad(file: &File) -> Result<RawCscUmiCounts, Error> {
     const X: &str = "X";
     // The actual counts (stored by scanpy as the highly-descriptive name "X") are usually stored as in compressed-sparse matrix format in a group, but they might also be in a dataset
     match file.group(X) {
@@ -20,7 +20,7 @@ pub fn read_umi_counts_from_h5ad(file: &File) -> Result<RawUmiCounts, Error> {
     }
 }
 
-fn read_x_group(x: &Group) -> Result<RawUmiCounts, Error> {
+fn read_x_group(x: &Group) -> Result<RawCscUmiCounts, Error> {
     let encoding_type = SparseEncodingType::from_group(x)?;
 
     let data = x.dataset("data").and_then(|ds| ds.read_raw())?;
@@ -34,31 +34,33 @@ fn read_x_group(x: &Group) -> Result<RawUmiCounts, Error> {
     let shape = (shape[0], shape[1]);
 
     let counts = match encoding_type {
-        SparseEncodingType::CsrMatrix => UmiCounts::new(shape, indptr, indices, data),
-        SparseEncodingType::CscMatrix => UmiCounts::new_csc(shape, indptr, indices, data),
+        SparseEncodingType::CsrMatrix => {
+            CsrMatrix::new(shape, indptr, indices, data).into_raw_umi_counts()
+        }
+        SparseEncodingType::CscMatrix => {
+            CscMatrix::new(shape, indptr, indices, data).into_raw_umi_counts()
+        }
     };
 
-    validate_total_counts_are_different_sparse(&counts)?;
-
-    Ok(RawUmiCounts(counts))
+    counts
 }
 
-fn read_x_dataset(x: &Dataset) -> Result<RawUmiCounts, Error> {
+fn read_x_dataset(x: &Dataset) -> Result<RawCscUmiCounts, Error> {
     let encoding_type = DenseEncodingType::from_dataset(x)?;
     let data = match encoding_type {
         DenseEncodingType::Array => x.read_2d()?,
     };
 
-    validate_total_counts_are_different_dense(&data)?;
-
     let shape = data.raw_dim();
 
     let data: Vec<_> = data.into_iter().map(f32_to_i32).collect::<Result<_, _>>()?;
 
-    Ok(ArrayView2::from_shape(shape, &data)
-        .map(|a| UmiCounts::csc_from_dense(a, 0))
-        .map(RawUmiCounts)
-        .expect("it's the same array, so it has the same shape"))
+    let mtx = CscMatrix::from_dense(
+        ArrayView2::from_shape(shape, &data)
+            .expect("it's the same array, so it has the same shape"),
+    );
+
+    mtx.into_raw_umi_counts()
 }
 
 fn f32_to_i32(f: f32) -> Result<i32, Error> {
@@ -69,44 +71,6 @@ fn f32_to_i32(f: f32) -> Result<i32, Error> {
         Ok(f as i32)
     } else {
         Err(Error::TransformedCounts)
-    }
-}
-
-fn validate_total_counts_are_different_dense(counts: &Array2<f32>) -> Result<(), Error> {
-    let total_counts_per_cell = counts.sum_axis(Axis(1));
-    let Some(first_nonzero) = total_counts_per_cell.first().copied() else {
-        return Err(Error::EmptyCounts);
-    };
-
-    let is_different_from_first = |f: f32| {
-        let diff: f32 = first_nonzero - f;
-        diff.abs() > 1.
-    };
-
-    let mut cell_sums = total_counts_per_cell.into_iter();
-    // Advance the iterator because obviously the first element will cause this function to fail
-    cell_sums.next();
-
-    // Write this check using Iterator::any so we can short-circuit on success
-    if cell_sums.any(is_different_from_first) {
-        Ok(())
-    } else {
-        Err(Error::NormalizedCounts)
-    }
-}
-
-fn validate_total_counts_are_different_sparse(counts: &UmiCounts) -> Result<(), Error> {
-    let mut total_counts_per_cell = counts
-        .outer_iterator()
-        .map(|cell| cell.data().iter().sum::<i32>());
-    let Some(first) = total_counts_per_cell.next() else {
-        return Err(Error::EmptyCounts);
-    };
-
-    if total_counts_per_cell.any(|s| s != first) {
-        Ok(())
-    } else {
-        Err(Error::NormalizedCounts)
     }
 }
 
@@ -137,20 +101,16 @@ impl From<hdf5_metno::Error> for Error {
 mod tests {
     use hdf5_metno::File;
 
-    use crate::reference_dataset::umi_counts::{RawUmiCounts, read_umi_counts_from_h5ad};
-
-    impl RawUmiCounts {
-        fn data(&self) -> &[i32] {
-            self.0.data()
-        }
-    }
+    use crate::reference_dataset::umi_counts::read_umi_counts_from_h5ad;
 
     #[test]
-    fn read_sparse_h5ad_files() {
-        // The last one apparently has some compression applied to it because of scanpy.write's default behavior
-        let files = ["csr_adata", "csc_adata", "WT_mouse_spinal_cord_P112_specimen_1_WT_mouse_spinal_cord_P112_specimen_1_sample_filtered_feature_bc_matrix"]
+    fn read_h5ad_files() {
+        // The last one apparently has some compression applied to it because of scanpy.write's default behavior. It's really nice that scanpy's default behavior differs from anndata's default behavior :)
+        let files = ["csr_adata", "csc_adata", "dense_adata", "WT_mouse_spinal_cord_P112_specimen_1_WT_mouse_spinal_cord_P112_specimen_1_sample_filtered_feature_bc_matrix"]
             .map(|fname| format!("test-data/{fname}.h5ad"))
             .map(|path| File::open(path).unwrap());
+
+        let mut all_counts = Vec::with_capacity(3);
 
         for f in files {
             let filename = f.filename();
@@ -164,19 +124,12 @@ mod tests {
                     "first entry in UMI counts of {filename} != 10"
                 );
             }
+
+            all_counts.push(counts);
         }
-    }
 
-    #[test]
-    fn read_dense_h5ad_file() {
-        let filename = "test-data/dense_adata.h5ad";
-        let file = File::open(filename).unwrap();
-        let counts = read_umi_counts_from_h5ad(&file).unwrap();
-
-        assert_eq!(
-            counts.data()[0],
-            10,
-            "first entry in UMI counts of {filename} != 10"
-        );
+        // We know the first 3 files are generated from the same data
+        assert_eq!(all_counts[0], all_counts[1]);
+        assert_eq!(all_counts[0], all_counts[2]);
     }
 }

@@ -2,7 +2,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use crate::reference_dataset::umi_counts::{RawUmiCounts, read_umi_counts_from_h5ad};
+use crate::reference_dataset::umi_counts::{RawCscUmiCounts, read_umi_counts_from_h5ad};
 
 mod obs;
 mod umi_counts;
@@ -34,7 +34,7 @@ pub fn validate_reference_dataset(
 }
 
 pub struct ReferenceDataset {
-    counts: RawUmiCounts,
+    counts: RawCscUmiCounts,
 }
 
 #[derive(Debug, thiserror::Error, Serialize)]
