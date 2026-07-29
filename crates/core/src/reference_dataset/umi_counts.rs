@@ -26,8 +26,8 @@ fn read_x_group(x: &Group) -> Result<RawCscUmiCounts, Error> {
     let data = x.dataset("data").and_then(|ds| ds.read_raw())?;
     let data = data.into_iter().map(f32_to_i32).collect::<Result<_, _>>()?;
 
-    let indptr: Vec<usize> = x.dataset("indptr").and_then(|ds| ds.read_raw())?;
-    let indices: Vec<usize> = x.dataset("indices").and_then(|ds| ds.read_raw())?;
+    let indptr: Vec<u32> = x.dataset("indptr").and_then(|ds| ds.read_raw())?;
+    let indices: Vec<u32> = x.dataset("indices").and_then(|ds| ds.read_raw())?;
 
     // It's very nice that scanpy decides to store the shape as an attribute rather than the following 10x Genomics and storing it as a dataset. It's great when a library built to analyze data ends up changing the format of the data :)
     let shape = x.attr("shape").and_then(|sh| sh.read_1d())?;

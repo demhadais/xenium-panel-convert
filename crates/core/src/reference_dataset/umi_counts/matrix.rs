@@ -1,5 +1,5 @@
 use ndarray::{Array2, ArrayView2};
-use sprs::CsMatBase;
+use sprs::{CsMatBase, CsMatI};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RawCscUmiCounts(CscMatrix);
@@ -8,12 +8,7 @@ pub struct RawCscUmiCounts(CscMatrix);
 pub struct CscMatrix(Matrix);
 
 impl CsrMatrix {
-    pub fn new(
-        shape: (usize, usize),
-        indptr: Vec<usize>,
-        indices: Vec<usize>,
-        data: Vec<i32>,
-    ) -> Self {
+    pub fn new(shape: (usize, usize), indptr: Vec<u32>, indices: Vec<u32>, data: Vec<i32>) -> Self {
         Self(Matrix::new(shape, indptr, indices, data))
     }
 
@@ -41,12 +36,7 @@ impl CsrMatrix {
 pub struct CsrMatrix(Matrix);
 
 impl CscMatrix {
-    pub fn new(
-        shape: (usize, usize),
-        indptr: Vec<usize>,
-        indices: Vec<usize>,
-        data: Vec<i32>,
-    ) -> Self {
+    pub fn new(shape: (usize, usize), indptr: Vec<u32>, indices: Vec<u32>, data: Vec<i32>) -> Self {
         Self(Matrix::new_csc(shape, indptr, indices, data))
     }
 
@@ -60,7 +50,7 @@ impl CscMatrix {
     }
 }
 
-type Matrix = CsMatBase<i32, usize, Vec<usize>, Vec<usize>, Vec<i32>>;
+type Matrix = CsMatI<i32, u32>;
 
 #[cfg(test)]
 impl RawCscUmiCounts {
