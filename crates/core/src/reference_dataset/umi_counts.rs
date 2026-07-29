@@ -1,6 +1,5 @@
 use hdf5_metno::{Dataset, File, Group};
 pub use matrix::RawCscUmiCounts;
-use ndarray::{Array2, ArrayView2, Axis};
 use serde::Serialize;
 
 use crate::reference_dataset::umi_counts::{
@@ -13,7 +12,9 @@ mod matrix;
 
 pub fn read_umi_counts_from_h5ad(file: &File) -> Result<RawCscUmiCounts, Error> {
     const X: &str = "X";
-    // The actual counts (stored by scanpy as the highly-descriptive name "X") are usually stored as in compressed-sparse matrix format in a group, but they might also be in a dataset
+    // The actual counts (stored by scanpy as the highly-descriptive name "X") are
+    // usually stored as in compressed-sparse matrix format in a group, but they
+    // might also be in a dataset
     match file.group(X) {
         Ok(g) => read_x_group(&g),
         Err(_) => read_x_dataset(&file.dataset(X)?),
@@ -29,38 +30,29 @@ fn read_x_group(x: &Group) -> Result<RawCscUmiCounts, Error> {
     let indptr: Vec<u32> = x.dataset("indptr").and_then(|ds| ds.read_raw())?;
     let indices: Vec<u32> = x.dataset("indices").and_then(|ds| ds.read_raw())?;
 
-    // It's very nice that scanpy decides to store the shape as an attribute rather than the following 10x Genomics and storing it as a dataset. It's great when a library built to analyze data ends up changing the format of the data :)
+    // It's very nice that scanpy decides to store the shape as an attribute rather
+    // than the following 10x Genomics and storing it as a dataset. It's great when
+    // a library built to analyze data ends up changing the format of the data :)
     let shape = x.attr("shape").and_then(|sh| sh.read_1d())?;
     let shape = (shape[0], shape[1]);
 
-    let counts = match encoding_type {
+    match encoding_type {
         SparseEncodingType::CsrMatrix => {
             CsrMatrix::new(shape, indptr, indices, data).into_raw_umi_counts()
         }
         SparseEncodingType::CscMatrix => {
             CscMatrix::new(shape, indptr, indices, data).into_raw_umi_counts()
         }
-    };
-
-    counts
+    }
 }
 
 fn read_x_dataset(x: &Dataset) -> Result<RawCscUmiCounts, Error> {
     let encoding_type = DenseEncodingType::from_dataset(x)?;
-    let data = match encoding_type {
+    let counts = match encoding_type {
         DenseEncodingType::Array => x.read_2d()?,
     };
 
-    let shape = data.raw_dim();
-
-    let data: Vec<_> = data.into_iter().map(f32_to_i32).collect::<Result<_, _>>()?;
-
-    let mtx = CscMatrix::from_dense(
-        ArrayView2::from_shape(shape, &data)
-            .expect("it's the same array, so it has the same shape"),
-    );
-
-    mtx.into_raw_umi_counts()
+    CscMatrix::from_dense(&counts)?.into_raw_umi_counts()
 }
 
 fn f32_to_i32(f: f32) -> Result<i32, Error> {
@@ -105,7 +97,9 @@ mod tests {
 
     #[test]
     fn read_h5ad_files() {
-        // The last one apparently has some compression applied to it because of scanpy.write's default behavior. It's really nice that scanpy's default behavior differs from anndata's default behavior :)
+        // The last one apparently has some compression applied to it because of
+        // scanpy.write's default behavior. It's really nice that scanpy's default
+        // behavior differs from anndata's default behavior :)
         let files = ["csr_adata", "csc_adata", "dense_adata", "WT_mouse_spinal_cord_P112_specimen_1_WT_mouse_spinal_cord_P112_specimen_1_sample_filtered_feature_bc_matrix"]
             .map(|fname| format!("test-data/{fname}.h5ad"))
             .map(|path| File::open(path).unwrap());

@@ -115,8 +115,6 @@ def main():
 
     rng = np.random.default_rng()
     counts = rng.integers(0, 10, size=(n_cells, len(GENES)))
-    # Set the first element = 10 so we can assert against it in tests
-    counts[0] = 10
 
     csr_adata = ad.AnnData(csr_matrix(counts, dtype=np.float32))
     csc_adata = ad.AnnData(csc_matrix(counts, dtype=np.float32))
