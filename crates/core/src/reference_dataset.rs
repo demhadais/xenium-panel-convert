@@ -10,9 +10,9 @@ mod var;
 
 pub fn validate_reference_dataset(
     path: impl AsRef<Path>,
-    cell_annotations_col: &str,
-    ensembl_id_col: &str,
-    gene_name_col: &str,
+    _cell_annotations_col: &str,
+    _ensembl_id_col: &str,
+    _gene_name_col: &str,
 ) -> Result<ReferenceDataset, Vec<Error>> {
     let mut errors = vec![];
 

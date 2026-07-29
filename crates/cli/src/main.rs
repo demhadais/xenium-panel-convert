@@ -28,7 +28,7 @@ fn main() -> anyhow::Result<()> {
 
             write_report(&parsed_targets, output.as_deref())?;
         }
-        Cli::References { args, common } => {
+        Cli::References { args, common: _ } => {
             let results = validate_reference_datasets(&args)?;
             // REMOVE!
             for r in results {

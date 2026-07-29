@@ -64,8 +64,8 @@ impl CscMatrix {
     pub fn into_raw_umi_counts(self) -> Result<RawCscUmiCounts, super::Error> {
         // This looks shitty because we are converting to a CSR, which then converts
         // back to a CSC (so that we can reuse code we've already written). These
-        // conversions are actually kind of expensive, but testing out the utility shows
-        // no perceptible difference, so we opt for the simpler implementation
+        // conversions are actually kind of expensive and use a lot of memory, but for
+        // real datasets, it's around 0.5 GB more of memory
         let mtx = self.0;
         CsrMatrix(mtx.into_csr()).into_raw_umi_counts()
     }

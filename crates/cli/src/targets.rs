@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs};
 
 use anyhow::{Context, anyhow};
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::Utf8PathBuf;
 use xenium_panel_validate_core::gene_list::{
     ParsedTargetList,
     chemistry::{
