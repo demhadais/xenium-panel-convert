@@ -75,8 +75,8 @@ fn f32_to_i32(f: f32) -> Result<i32, Error> {
 }
 
 fn validate_total_counts_are_different_dense(counts: &Array2<f32>) -> Result<(), Error> {
-    let cell_sums = counts.sum_axis(Axis(1));
-    let Some(first_nonzero) = cell_sums.first().copied() else {
+    let total_counts_per_cell = counts.sum_axis(Axis(1));
+    let Some(first_nonzero) = total_counts_per_cell.first().copied() else {
         return Err(Error::EmptyCounts);
     };
 
@@ -85,7 +85,7 @@ fn validate_total_counts_are_different_dense(counts: &Array2<f32>) -> Result<(),
         diff.abs() > 1.
     };
 
-    let mut cell_sums = cell_sums.into_iter();
+    let mut cell_sums = total_counts_per_cell.into_iter();
     // Advance the iterator because obviously the first element will cause this function to fail
     cell_sums.next();
 
@@ -98,14 +98,14 @@ fn validate_total_counts_are_different_dense(counts: &Array2<f32>) -> Result<(),
 }
 
 fn validate_total_counts_are_different_sparse(counts: &UmiCounts) -> Result<(), Error> {
-    let mut cell_sums = counts
+    let mut total_counts_per_cell = counts
         .outer_iterator()
         .map(|cell| cell.data().iter().sum::<i32>());
-    let Some(first) = cell_sums.next() else {
+    let Some(first) = total_counts_per_cell.next() else {
         return Err(Error::EmptyCounts);
     };
 
-    if cell_sums.any(|s| s != first) {
+    if total_counts_per_cell.any(|s| s != first) {
         Ok(())
     } else {
         Err(Error::NormalizedCounts)
