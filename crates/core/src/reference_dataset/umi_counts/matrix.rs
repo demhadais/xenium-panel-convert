@@ -1,4 +1,4 @@
-use ndarray::{Array2, ArrayView2};
+use ndarray::Array2;
 use sprs::CsMatI;
 
 #[derive(Clone, Debug, PartialEq)]
