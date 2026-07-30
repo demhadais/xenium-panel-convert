@@ -29,9 +29,6 @@ async fn main() -> anyhow::Result<()> {
     let Config { human, mouse } = toml::from_slice(include_bytes!("genes.toml"))
         .context("failed to parse config from genes.toml")?;
 
-    let mut annotations = HashSet::with_capacity(N_GENES);
-    read_gene_annotations_into(&human.gene_annotations_path, &mut annotations)?;
-
     let http_client = reqwest::Client::new();
     let unavailable_gene_sets = [
         human.xenium_v1_unavailable_genes_url,
@@ -47,6 +44,9 @@ async fn main() -> anyhow::Result<()> {
         mouse_v1_unavailable,
         mouse_prime_unavailable,
     ] = unavailable_gene_sets.as_array().unwrap();
+
+    let mut annotations = HashSet::with_capacity(N_GENES);
+    read_gene_annotations_into(&human.gene_annotations_path, &mut annotations)?;
 
     let human_v1_map = construct_map(&annotations, human_v1_unavailable);
     write_map_to_file(
@@ -188,13 +188,7 @@ fn parse_ensembl_id_and_name_from_gtf_record(record: &RecordBuf) -> (String, Str
     };
 
     (
-        gene_id
-            .to_str()
-            .unwrap()
-            .split('.')
-            .next()
-            .map(str::to_owned)
-            .unwrap(),
+        gene_id.to_str().map(str::to_owned).unwrap(),
         gene_name.to_str().map(str::to_owned).unwrap(),
     )
 }

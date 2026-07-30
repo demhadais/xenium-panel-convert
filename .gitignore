@@ -13,5 +13,6 @@ target
 # Contains mutation testing data
 **/mutants.out*/
 
-# Genome annotation files
-*.gtf*
+# Genome annotation files (temporary)
+gencode.v32.primary_assembly.annotation.gtf
+gencode.vM23.primary_assembly.annotation.gtf

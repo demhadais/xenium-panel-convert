@@ -1,10 +1,9 @@
 use hdf5_metno::{Dataset, File, Group};
 pub use matrix::RawCscUmiCounts;
-use serde::Serialize;
 
-use crate::reference_dataset::umi_counts::{
-    encoding_type::{DenseEncodingType, SparseEncodingType},
-    matrix::{CscMatrix, CsrMatrix},
+use crate::reference_dataset::{
+    Error,
+    umi_counts::encoding_type::{DenseEncodingType, SparseEncodingType},
 };
 
 mod encoding_type;
@@ -36,14 +35,7 @@ fn read_x_group(x: &Group) -> Result<RawCscUmiCounts, Error> {
     let shape = x.attr("shape").and_then(|sh| sh.read_1d())?;
     let shape = (shape[0], shape[1]);
 
-    match encoding_type {
-        SparseEncodingType::CsrMatrix => {
-            CsrMatrix::new(shape, indptr, indices, data)?.into_raw_umi_counts()
-        }
-        SparseEncodingType::CscMatrix => {
-            CscMatrix::new(shape, indptr, indices, data)?.into_raw_umi_counts()
-        }
-    }
+    RawCscUmiCounts::from_sparse_matrix(shape, indptr, indices, data, encoding_type)
 }
 
 fn read_x_dataset(x: &Dataset) -> Result<RawCscUmiCounts, Error> {
@@ -52,40 +44,7 @@ fn read_x_dataset(x: &Dataset) -> Result<RawCscUmiCounts, Error> {
         DenseEncodingType::Array => x.read_2d()?,
     };
 
-    CscMatrix::from_dense(&counts).into_raw_umi_counts()
-}
-
-#[derive(Debug, Serialize, thiserror::Error)]
-#[serde(rename_all = "snake_case", tag = "type")]
-pub enum Error {
-    #[error("empty UMI counts")]
-    EmptyCounts,
-    #[error("transformed UMI counts")]
-    TransformedCounts,
-    #[error("normalized UMI counts")]
-    NormalizedCounts,
-    #[error("malformed count matrix: {reason}")]
-    MalformedMatrix { reason: String },
-    #[error("HDF5 error: {reason}")]
-    Hdf5 { reason: String },
-    #[error("unknown encoding type")]
-    UnknownEncodingType,
-}
-
-impl From<hdf5_metno::Error> for Error {
-    fn from(err: hdf5_metno::Error) -> Self {
-        Self::Hdf5 {
-            reason: err.to_string(),
-        }
-    }
-}
-
-impl From<sprs::errors::StructureError> for Error {
-    fn from(err: sprs::errors::StructureError) -> Self {
-        Self::MalformedMatrix {
-            reason: err.to_string(),
-        }
-    }
+    RawCscUmiCounts::from_dense_matrix(&counts)
 }
 
 #[cfg(test)]
@@ -103,7 +62,7 @@ mod tests {
             .map(|fname| format!("test-data/{fname}.h5ad"))
             .map(|path| File::open(path).unwrap());
 
-        let mut all_counts = Vec::with_capacity(4);
+        let mut all_counts = Vec::with_capacity(files.len());
 
         for f in files {
             let filename = f.filename();

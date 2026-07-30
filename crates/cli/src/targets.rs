@@ -15,11 +15,11 @@ use xenium_panel_validate_core::gene_list::{
 pub fn parse_target_list_from_file(
     CommandlineArgs {
         target_path,
-        species,
-        chemistry,
         field_alias_path,
         field_aliases,
     }: &CommandlineArgs,
+    species: Species,
+    chemistry: Chemistry,
 ) -> anyhow::Result<ParsedTargetList> {
     let target_list = fs::read_to_string(target_path)
         .with_context(|| format!("failed to read target-list from {target_path}"))?;
@@ -76,10 +76,6 @@ pub fn parse_target_list_from_file(
 #[derive(Debug, Clone, PartialEq, Eq, clap::Args)]
 pub struct CommandlineArgs {
     target_path: Utf8PathBuf,
-    #[clap(long, short)]
-    species: Species,
-    #[clap(long, short)]
-    chemistry: Chemistry,
     #[clap(long, short = 'p')]
     field_alias_path: Option<Utf8PathBuf>,
     #[clap(long, short = 'a', value_parser = parse_field_aliases)]

@@ -9,7 +9,7 @@ use clap::Parser;
 use serde::Serialize;
 use xenium_panel_validate::{
     reference_datasets::{self, validate_reference_datasets},
-    targets::{self, parse_target_list_from_file},
+    targets::{self, Chemistry, Species, parse_target_list_from_file},
 };
 
 fn main() -> anyhow::Result<()> {
@@ -20,22 +20,29 @@ fn main() -> anyhow::Result<()> {
             args,
             common:
                 CommonOptions {
+                    species,
+                    chemistry,
                     output_format,
                     output,
                 },
         } => {
-            let parsed_targets = parse_target_list_from_file(&args)?;
+            let parsed_targets = parse_target_list_from_file(&args, species, chemistry)?;
 
             match output_format {
                 Format::Json => write_json_report(&parsed_targets, output.as_deref())?,
             }
         }
-        Cli::References { args, common: _ } => {
-            let results = validate_reference_datasets(&args)?;
-            // REMOVE!
-            for r in results {
-                r.unwrap();
-            }
+        Cli::References {
+            args,
+            common:
+                CommonOptions {
+                    species,
+                    chemistry,
+                    output_format,
+                    output,
+                },
+        } => {
+            let results = validate_reference_datasets(&args, species, chemistry)?;
         }
     }
 
@@ -78,6 +85,10 @@ enum Cli {
 
 #[derive(Debug, Clone, PartialEq, Eq, clap::Args)]
 struct CommonOptions {
+    #[clap(long, short)]
+    species: Species,
+    #[clap(long, short)]
+    chemistry: Chemistry,
     #[clap(long, short = 'f', default_value_t = Format::Json)]
     output_format: Format,
     #[clap(long, short)]
