@@ -113,7 +113,8 @@ mod tests {
         let from_dense = RawCscUmiCounts::from_dense_matrix(&counts()).unwrap();
         assert_eq!(
             from_csr, from_dense,
-            "dense matrix and sparse matrix provided from the same counts did not produce the same matrix"
+            "dense matrix and sparse matrix provided from the same counts did not produce the \
+             same matrix"
         );
     }
 

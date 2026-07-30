@@ -188,7 +188,12 @@ fn parse_ensembl_id_and_name_from_gtf_record(record: &RecordBuf) -> (String, Str
     };
 
     (
-        gene_id.to_str().map(str::to_owned).unwrap(),
+        gene_id
+            .to_str()
+            .ok()
+            .and_then(|s| s.split('.').next())
+            .map(str::to_owned)
+            .unwrap(),
         gene_name.to_str().map(str::to_owned).unwrap(),
     )
 }

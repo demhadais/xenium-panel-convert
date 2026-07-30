@@ -14,7 +14,8 @@ pub fn read_features_from_h5ad(
 
     let [Ok(ensembl_ids), Ok(gene_names), Ok(feature_types)] = features else {
         return Err(Error::IncompleteFeatures {
-            reason: "columns containing the Ensembl IDs, gene names, and feature types were not found in 'var'",
+            reason: "columns containing the Ensembl IDs, gene names, and feature types were not \
+                     found in 'var'",
         });
     };
 
