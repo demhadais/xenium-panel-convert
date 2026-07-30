@@ -1,8 +1,12 @@
-use std::fs;
+use std::{
+    fs,
+    io::{self, Write},
+};
 
 use anyhow::Context;
 use camino::Utf8Path;
 use clap::Parser;
+use serde::Serialize;
 use xenium_panel_validate::{
     reference_datasets::{self, validate_reference_datasets},
     targets::{self, parse_target_list_from_file},
@@ -22,11 +26,9 @@ fn main() -> anyhow::Result<()> {
         } => {
             let parsed_targets = parse_target_list_from_file(&args)?;
 
-            let parsed_targets = match output_format {
-                Format::Json => serde_json::to_string(&parsed_targets)?,
-            };
-
-            write_report(&parsed_targets, output.as_deref())?;
+            match output_format {
+                Format::Json => write_json_report(&parsed_targets, output.as_deref())?,
+            }
         }
         Cli::References { args, common: _ } => {
             let results = validate_reference_datasets(&args)?;
@@ -40,11 +42,19 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn write_report(data: &str, output_path: Option<&Utf8Path>) -> anyhow::Result<()> {
+fn write_json_report(data: &impl Serialize, output_path: Option<&Utf8Path>) -> anyhow::Result<()> {
     if let Some(path) = output_path {
-        fs::write(path, data).context(format!("failed to write report to {path}"))?;
+        let error_message = || format!("failed to write report to {path}");
+        let file = fs::File::create(path).with_context(error_message)?;
+
+        serde_json::to_writer(io::BufWriter::new(file), data).with_context(error_message)?;
     } else {
-        println!("{data}");
+        let mut stdout = io::BufWriter::new(io::stdout().lock());
+
+        serde_json::to_writer(&mut stdout, data)?;
+        stdout
+            .write_all(b"\n")
+            .context("failed to write report to stdout")?;
     }
 
     Ok(())

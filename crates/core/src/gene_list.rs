@@ -14,11 +14,13 @@ pub fn parse_target_list(
 ) -> csv::Result<ParsedTargetList> {
     const N_GENES: usize = 500;
     let target_list = target_list.trim();
-    let mut reader = csv::Reader::from_reader(target_list.as_bytes());
+    let mut reader = csv::ReaderBuilder::new()
+        .trim(csv::Trim::All)
+        .from_reader(target_list.as_bytes());
 
     // We initialize the list of errors from the field-renaming, but it doesn't
     // prevent us from continuing the parsing
-    let (fieldnames, error) = rename_fields(reader.headers()?.to_owned(), field_aliases);
+    let (fieldnames, error) = rename_fields(reader.headers()?, field_aliases);
     let fieldnames = Some(&fieldnames);
     let mut errors = error.map(|e| vec![e]).unwrap_or_default();
 
@@ -30,7 +32,7 @@ pub fn parse_target_list(
         let line_number = record.position().map(csv::Position::line);
 
         let (submitted_target, result) =
-            parse_target_from_record(record, fieldnames, ensembl_id_to_gene);
+            parse_target_from_record(&record, fieldnames, ensembl_id_to_gene);
         let submitted_target = Some(submitted_target);
 
         match result {
@@ -62,14 +64,13 @@ pub fn parse_target_list(
 }
 
 fn rename_fields(
-    mut original_fieldnames: StringRecord,
+    original_fieldnames: &StringRecord,
     field_aliases: &HashMap<&str, &str>,
 ) -> (StringRecord, Option<Error>) {
-    original_fieldnames.trim();
     let mut renamed_fields = StringRecord::new();
     let mut errors = Vec::new();
 
-    for original in &original_fieldnames {
+    for original in original_fieldnames {
         let renamed = field_aliases.get(original).unwrap_or(&original);
 
         renamed_fields.push_field(renamed);
@@ -94,13 +95,10 @@ fn rename_fields(
 
 #[allow(clippy::result_large_err)]
 fn parse_target_from_record(
-    mut record: StringRecord,
+    record: &StringRecord,
     fieldnames: Option<&StringRecord>,
     ensembl_id_to_gene: impl Fn(&UnvalidatedEnsemblId) -> Option<(EnsemblId, GeneName)>,
 ) -> (UnvalidatedTarget, Result<ValidTarget, Vec<ErrorInner>>) {
-    // Trim the individual fields of the record
-    record.trim();
-
     // Unwrapping is fine because extra fields won't cause a failure, nor will
     // missing fields
     let unvalidated_target = record.deserialize(fieldnames).unwrap();
@@ -118,7 +116,7 @@ fn validate_target(
     }: &UnvalidatedTarget,
     ensembl_id_to_gene: impl Fn(&UnvalidatedEnsemblId) -> Option<(EnsemblId, GeneName)>,
 ) -> Result<ValidTarget, Vec<ErrorInner>> {
-    let mut errors = Vec::with_capacity(4);
+    let mut errors = Vec::new();
 
     if group.is_none() {
         errors.push(ErrorInner::MissingField { fieldname: "group" });
@@ -159,7 +157,7 @@ fn validate_target(
         (Some(valid_gene), Some(group), Some(is_backup), Some(must_have)) if errors.is_empty() => {
             Ok(ValidTarget {
                 gene: valid_gene,
-                group: group.to_lowercase(),
+                group: group.to_ascii_lowercase(),
                 is_backup,
                 must_have,
             })
@@ -217,9 +215,15 @@ fn parse_bool_from_str(s: Option<&str>, fieldname: &'static str) -> Result<bool,
         return Err(ErrorInner::MissingField { fieldname });
     };
 
-    let s = s.to_lowercase();
-
-    s.parse().map_err(|_| ErrorInner::ParseBool { value: s })
+    if s.eq_ignore_ascii_case("true") {
+        Ok(true)
+    } else if s.eq_ignore_ascii_case("false") {
+        Ok(false)
+    } else {
+        Err(ErrorInner::ParseBool {
+            value: s.to_owned(),
+        })
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -312,7 +316,7 @@ mod tests {
         let original_fieldnames = ["field1", "field2"].iter().collect();
         let field_aliases = [("field1", "field_1")].into_iter().collect();
 
-        let (renamed_fields, error) = rename_fields(original_fieldnames, &field_aliases);
+        let (renamed_fields, error) = rename_fields(&original_fieldnames, &field_aliases);
 
         assert_eq!(
             renamed_fields,

@@ -42,12 +42,10 @@ impl UnvalidatedEnsemblId {
 
     #[must_use]
     pub fn is_versionless_and_uppercase(&self) -> bool {
-        !self.0.contains('.')
-            && self
-                .0
-                .chars()
-                .filter(|c| c.is_alphabetic())
-                .all(char::is_uppercase)
+        !self
+            .0
+            .chars()
+            .any(|c| c == '.' || (c.is_alphabetic() && !c.is_uppercase()))
     }
 
     #[must_use]

@@ -19,7 +19,7 @@ pub fn validate_reference_datasets(
          columns, and gene-name columns"
     );
 
-    let mut results = Vec::with_capacity(8);
+    let mut results = Vec::with_capacity(paths.len());
 
     for (((path, cell_annotations_col), ensembl_id_col), gene_name_col) in paths
         .iter()

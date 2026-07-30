@@ -14,21 +14,8 @@ pub fn validate_reference_dataset(
     _ensembl_id_col: &str,
     _gene_name_col: &str,
 ) -> Result<ReferenceDataset, Vec<Error>> {
-    let mut errors = vec![];
-
     let file = hdf5_metno::File::open(path).map_err(|e| vec![e.into()])?;
-
-    let counts = match read_umi_counts_from_h5ad(&file) {
-        Ok(counts) => Some(counts),
-        Err(e) => {
-            errors.push(e.into());
-            None
-        }
-    };
-
-    let Some(counts) = counts else {
-        return Err(errors);
-    };
+    let counts = read_umi_counts_from_h5ad(&file).map_err(|e| vec![e.into()])?;
 
     Ok(ReferenceDataset { counts })
 }

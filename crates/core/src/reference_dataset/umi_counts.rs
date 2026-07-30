@@ -26,8 +26,9 @@ fn read_x_group(x: &Group) -> Result<RawCscUmiCounts, Error> {
 
     let data = x.dataset("data").and_then(|ds| ds.read_raw())?;
 
-    let indptr: Vec<u32> = x.dataset("indptr").and_then(|ds| ds.read_raw())?;
-    let indices: Vec<u32> = x.dataset("indices").and_then(|ds| ds.read_raw())?;
+    // scanpy writes these as int32, so reading them as int32 avoids a conversion
+    let indptr: Vec<i32> = x.dataset("indptr").and_then(|ds| ds.read_raw())?;
+    let indices: Vec<i32> = x.dataset("indices").and_then(|ds| ds.read_raw())?;
 
     // It's very nice that scanpy decides to store the shape as an attribute rather
     // than the following 10x Genomics and storing it as a dataset. It's great when
@@ -37,10 +38,10 @@ fn read_x_group(x: &Group) -> Result<RawCscUmiCounts, Error> {
 
     match encoding_type {
         SparseEncodingType::CsrMatrix => {
-            CsrMatrix::new(shape, indptr, indices, data).into_raw_umi_counts()
+            CsrMatrix::new(shape, indptr, indices, data)?.into_raw_umi_counts()
         }
         SparseEncodingType::CscMatrix => {
-            CscMatrix::new(shape, indptr, indices, data).into_raw_umi_counts()
+            CscMatrix::new(shape, indptr, indices, data)?.into_raw_umi_counts()
         }
     }
 }
@@ -51,7 +52,7 @@ fn read_x_dataset(x: &Dataset) -> Result<RawCscUmiCounts, Error> {
         DenseEncodingType::Array => x.read_2d()?,
     };
 
-    CscMatrix::from_dense(&counts)?.into_raw_umi_counts()
+    CscMatrix::from_dense(&counts).into_raw_umi_counts()
 }
 
 #[derive(Debug, Serialize, thiserror::Error)]
@@ -63,6 +64,8 @@ pub enum Error {
     TransformedCounts,
     #[error("normalized UMI counts")]
     NormalizedCounts,
+    #[error("malformed count matrix: {reason}")]
+    MalformedMatrix { reason: String },
     #[error("HDF5 error: {reason}")]
     Hdf5 { reason: String },
     #[error("unknown encoding type")]
@@ -72,6 +75,14 @@ pub enum Error {
 impl From<hdf5_metno::Error> for Error {
     fn from(err: hdf5_metno::Error) -> Self {
         Self::Hdf5 {
+            reason: err.to_string(),
+        }
+    }
+}
+
+impl From<sprs::errors::StructureError> for Error {
+    fn from(err: sprs::errors::StructureError) -> Self {
+        Self::MalformedMatrix {
             reason: err.to_string(),
         }
     }
@@ -92,12 +103,12 @@ mod tests {
             .map(|fname| format!("test-data/{fname}.h5ad"))
             .map(|path| File::open(path).unwrap());
 
-        let mut all_counts = Vec::with_capacity(3);
+        let mut all_counts = Vec::with_capacity(4);
 
         for f in files {
             let filename = f.filename();
             let counts = read_umi_counts_from_h5ad(&f)
-                .expect(&format!("failed to read UMI counts from {filename}"));
+                .unwrap_or_else(|e| panic!("failed to read UMI counts from {filename}: {e}"));
 
             if filename.contains("adata") {
                 assert_eq!(

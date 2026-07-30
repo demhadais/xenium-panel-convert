@@ -14,7 +14,7 @@ use url::Url;
 
 // There are roughly 60,000 annotated features (Ensembl IDs) in the human genome
 // (the larger of the two), so just allocate the nearest power of 2
-const N_GENES: usize = 65_356;
+const N_GENES: usize = 65_536;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

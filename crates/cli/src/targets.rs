@@ -22,7 +22,7 @@ pub fn parse_target_list_from_file(
     }: &CommandlineArgs,
 ) -> anyhow::Result<ParsedTargetList> {
     let target_list = fs::read_to_string(target_path)
-        .context(format!("failed to read target-list from {target_path}"))?;
+        .with_context(|| format!("failed to read target-list from {target_path}"))?;
 
     let field_alias_file_contents = field_alias_path
         .as_ref()
@@ -45,18 +45,32 @@ pub fn parse_target_list_from_file(
             }
         })?;
 
-    let ensembl_id_to_gene = match (species, chemistry) {
-        (Species::HomoSapiens, Chemistry::V1) => xenium_v1_human_ensembl_id_to_gene,
-        (Species::HomoSapiens, Chemistry::Prime) => xenium_prime_human_ensembl_id_to_gene,
-        (Species::MusMusculus, Chemistry::V1) => xenium_v1_mouse_ensembl_id_to_gene,
-        (Species::MusMusculus, Chemistry::Prime) => xenium_prime_mouse_ensembl_id_to_gene,
-    };
+    // Each arm passes a distinct function item, so the gene lookup is monomorphized
+    // rather than called through a function pointer
+    let parsed_target_list = match (species, chemistry) {
+        (Species::HomoSapiens, Chemistry::V1) => parse_target_list(
+            &target_list,
+            &field_aliases,
+            xenium_v1_human_ensembl_id_to_gene,
+        ),
+        (Species::HomoSapiens, Chemistry::Prime) => parse_target_list(
+            &target_list,
+            &field_aliases,
+            xenium_prime_human_ensembl_id_to_gene,
+        ),
+        (Species::MusMusculus, Chemistry::V1) => parse_target_list(
+            &target_list,
+            &field_aliases,
+            xenium_v1_mouse_ensembl_id_to_gene,
+        ),
+        (Species::MusMusculus, Chemistry::Prime) => parse_target_list(
+            &target_list,
+            &field_aliases,
+            xenium_prime_mouse_ensembl_id_to_gene,
+        ),
+    }?;
 
-    Ok(parse_target_list(
-        &target_list,
-        &field_aliases,
-        ensembl_id_to_gene,
-    )?)
+    Ok(parsed_target_list)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, clap::Args)]
@@ -95,9 +109,7 @@ fn read_field_aliases<'a>(
 
     for (alias, field) in aliases_from_file {
         // We want field-aliases from the CLI to take precedence
-        if !field_aliases.contains_key(alias) {
-            field_aliases.insert(alias, field);
-        }
+        field_aliases.entry(alias).or_insert(field);
     }
 
     Ok(field_aliases)
