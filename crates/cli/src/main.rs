@@ -11,6 +11,7 @@ use xenium_panel_validate::{
     reference_datasets::{self, validate_reference_datasets},
     targets::{self, Chemistry, Species, parse_target_list_from_file},
 };
+use xenium_panel_validate_core::reference_dataset::write_reference_dataset;
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -43,6 +44,9 @@ fn main() -> anyhow::Result<()> {
                 },
         } => {
             let results = validate_reference_datasets(&args, species, chemistry)?;
+            for r in results {
+                write_reference_dataset("foo", &r.unwrap()).unwrap();
+            }
         }
     }
 

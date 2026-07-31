@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use ndarray::Array2;
 use sprs::CsMatI;
 
@@ -38,6 +40,24 @@ impl RawCscUmiCounts {
 
     pub fn from_dense_matrix(counts: &Array2<f32>) -> Result<Self, Error> {
         Self::from_csc_matrix(CscMatrix::new(Matrix::csc_from_dense(counts.view(), 0.)))
+    }
+
+    pub fn data(&self) -> &[f32] {
+        self.0.get().data()
+    }
+
+    pub fn indices(&self) -> &[i32] {
+        self.0.get().indices()
+    }
+
+    pub fn indptr(&self) -> Cow<'_, [i32]> {
+        self.0.get().proper_indptr()
+    }
+
+    pub fn shape(&self) -> [usize; 2] {
+        let (nrows, ncols) = self.0.get().shape();
+
+        [nrows, ncols]
     }
 }
 
@@ -81,12 +101,6 @@ mod tests {
         Error, RawCscUmiCounts,
         matrix::{Matrix, csc::CscMatrix},
     };
-
-    impl RawCscUmiCounts {
-        pub fn data(&self) -> &[f32] {
-            self.0.get().data()
-        }
-    }
 
     fn counts() -> Array2<f32> {
         array![[0., 1., 2.], [2., 4., 6.]]
