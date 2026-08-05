@@ -23,7 +23,8 @@ pub fn validate_reference_datasets(
             && cell_barcode_cols.len() == cell_annotation_cols.len()
             && cell_annotation_cols.len() == ensembl_id_cols.len()
             && ensembl_id_cols.len() == gene_name_cols.len(),
-        "the number of dataset paths, cell-barcode columns, cell-annotation columns, Ensembl ID columns, and gene-name columns must all be equal"
+        "the number of dataset paths, cell-barcode columns, cell-annotation columns, Ensembl ID \
+         columns, and gene-name columns must all be equal"
     );
 
     let mut results = Vec::with_capacity(paths.len());

@@ -1,12 +1,6 @@
-use std::{
-    fs,
-    path::Path,
-};
+use std::{fs, path::Path};
 
-use hdf5_metno::{
-    File, Group, H5Type,
-    types::FixedAscii,
-};
+use hdf5_metno::{File, Group, H5Type, types::FixedAscii};
 use ndarray::{Array1, ArrayView};
 use serde::Serialize;
 

@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-
 #[derive(Clone, Copy, Debug, strum::Display)]
 pub enum EncodingType {
     #[strum(transparent)]
@@ -13,7 +12,8 @@ impl EncodingType {
     pub const VARIANTS: &'static [&'static str] = &["array", "csr_matrix", "csc_matrix"];
 }
 
-// We don't actually need a good error here because the caller decides what to do
+// We don't actually need a good error here because the caller decides what to
+// do
 impl FromStr for EncodingType {
     type Err = ();
 

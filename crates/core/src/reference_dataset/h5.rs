@@ -118,7 +118,8 @@ pub enum StringEncodingType {
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum ReadFieldError {
     #[error(
-        "failed to read {path} as {field_type} - it may be nonexistent or a different type than expected"
+        "failed to read {path} as {field_type} - it may be nonexistent or a different type than \
+         expected"
     )]
     DataTypeOrMissing { field_type: FieldType, path: String },
     #[error("missing value at index {index} in dataset {dataset_path}")]

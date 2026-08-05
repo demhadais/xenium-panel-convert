@@ -1,7 +1,4 @@
-use hdf5_metno::{
-    File,
-    types::FixedAscii,
-};
+use hdf5_metno::{File, types::FixedAscii};
 use ndarray::Array1;
 use serde::Serialize;
 
@@ -19,7 +16,8 @@ pub fn read_features_from_h5ad(
     let [Ok(ensembl_ids), Ok(gene_names), Ok(feature_type)] = features else {
         return Err(Error::IncompleteFeatures {
             reason: format!(
-                "one of the columns '{ensembl_id_col}', '{gene_name_col}', or 'feature_types' were not found"
+                "one of the columns '{ensembl_id_col}', '{gene_name_col}', or 'feature_types' \
+                 were not found"
             ),
         });
     };
