@@ -134,7 +134,7 @@ def main():
 
         adata.write_h5ad(f"../{name}.h5ad")
 
-    filename = "../WT_mouse_spinal_cord_P112_specimen_1_WT_mouse_spinal_cord_P112_specimen_1_sample_filtered_feature_bc_matrix.h5"
+    filename = "../10k_Human_DTC_Melanoma_3p_gemx_10k_Human_DTC_Melanoma_3p_gemx_count_sample_filtered_feature_bc_matrix.h5"
     tenx_adata = sc.read_10x_h5(filename)
     sc.write(f"{filename}ad", sc.pp.subsample(tenx_adata, 0.01, copy=True))
 

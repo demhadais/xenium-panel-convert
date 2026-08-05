@@ -73,7 +73,7 @@ pub fn parse_target_list_from_file(
     Ok(parsed_target_list)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, clap::Args)]
+#[derive(Debug, Clone, clap::Args)]
 pub struct CommandlineArgs {
     target_path: Utf8PathBuf,
     #[clap(long, short = 'p')]
@@ -111,13 +111,13 @@ fn read_field_aliases<'a>(
     Ok(field_aliases)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
 pub enum Species {
     HomoSapiens,
     MusMusculus,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
 pub enum Chemistry {
     V1,
     Prime,

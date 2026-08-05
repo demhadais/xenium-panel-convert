@@ -1,6 +1,8 @@
+use anyhow::Context;
 use camino::{Utf8Path, Utf8PathBuf};
+use serde::Serialize;
 use xenium_panel_validate_core::reference_dataset::{
-    self, ReferenceDataset, validate_reference_dataset,
+    self, ReferenceDataset, validate_reference_dataset, write_reference_dataset,
 };
 
 use crate::targets::{Chemistry, Species};
@@ -52,9 +54,7 @@ pub fn validate_reference_datasets(
     Ok(results)
 }
 
-pub fn write_reference_datasets() {}
-
-#[derive(Clone, Debug, PartialEq, Eq, clap::Args)]
+#[derive(Clone, Debug, clap::Args)]
 pub struct CommandlineArgs {
     #[clap(short, long)]
     paths: Vec<Utf8PathBuf>,
@@ -68,7 +68,13 @@ pub struct CommandlineArgs {
     gene_name_cols: Vec<String>,
 }
 
-#[derive(Debug)]
+impl CommandlineArgs {
+    pub fn paths(&self) -> &[Utf8PathBuf] {
+        &self.paths
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub struct DatasetErrors {
     path: Utf8PathBuf,
     errors: Vec<reference_dataset::Error>,

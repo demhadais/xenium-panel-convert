@@ -5,8 +5,8 @@ use std::{
 };
 
 use hdf5_metno::{
-    File, H5Type,
-    types::{FixedUnicode, VarLenUnicode},
+    File, Group, H5Type, MajorErrorCode, MinorErrorCode,
+    types::{FixedAscii, FixedUnicode, VarLenUnicode},
 };
 use ndarray::{Array1, ArrayView};
 use serde::Serialize;
@@ -18,8 +18,8 @@ use crate::reference_dataset::{
     var::{Features, read_features_from_h5ad},
 };
 
-mod common;
 mod feature_sets;
+mod h5;
 mod obs;
 mod umi_counts;
 mod var;
@@ -33,36 +33,40 @@ pub fn validate_reference_dataset(
 ) -> Result<ReferenceDataset, Vec<Error>> {
     let mut errors = Vec::new();
 
-    let file = hdf5_metno::File::open(path).map_err(|e| vec![e.into()])?;
+    let file = hdf5_metno::File::open(path).map_err(|e| {
+        vec![Error::InvalidH5File {
+            reason: e.to_string(),
+        }]
+    })?;
 
     let counts = match read_umi_counts_from_h5ad(&file) {
         Ok(c) => Some(c),
-        Err(e) => {
-            errors.push(e);
+        Err(error) => {
+            errors.push(Error::UmiCounts { error });
             None
         }
     };
 
     let barcodes = match read_cell_barcodes_from_h5ad(&file, cell_barcode_col) {
         Ok(b) => Some(b),
-        Err(e) => {
-            errors.push(e);
+        Err(error) => {
+            errors.push(Error::Obs { error });
             None
         }
     };
 
     let cell_annotations = match read_cell_annotations_from_h5ad(&file, cell_annotation_col) {
         Ok(a) => Some(a),
-        Err(e) => {
-            errors.push(e);
+        Err(error) => {
+            errors.push(Error::Obs { error });
             None
         }
     };
 
     let features = match read_features_from_h5ad(&file, ensembl_id_col, gene_name_col) {
         Ok(f) => Some(f),
-        Err(e) => {
-            errors.push(e);
+        Err(error) => {
+            errors.push(Error::Var { error });
             None
         }
     };
@@ -91,84 +95,126 @@ pub fn write_reference_dataset(
         features,
     }: &ReferenceDataset,
 ) -> Result<(), Error> {
-    fs::create_dir_all(&path).map_err(|e| Error::InvalidOutputPath {
-        path: path.as_ref().to_str().map(str::to_owned).unwrap(),
-        reason: e.to_string(),
-    })?;
+    let path = path.as_ref();
 
-    let file = File::create_excl(path)?;
+    fs::create_dir_all(&path).map_err(|e| Error::from_path_error(&path, e))?;
 
-    write_dataset_to_h5(
-        &file,
-        "matrix/barcodes",
-        barcodes.as_slice().ok_or(Error::Other)?,
+    let matrix_path = path.join("matrix.h5");
+    let file =
+        File::create_excl(&matrix_path).map_err(|e| Error::from_path_error(&matrix_path, e))?;
+
+    let matrix_group = file.create_group("matrix").unwrap();
+
+    write_dataset_to_h5_group(&matrix_group, "barcodes", barcodes)?;
+    write_dataset_to_h5_group(&matrix_group, "data", counts.data())?;
+    write_dataset_to_h5_group(&matrix_group, "indices", counts.indices())?;
+    write_dataset_to_h5_group(&matrix_group, "indptr", counts.indptr().iter().as_slice())?;
+    write_dataset_to_h5_group(&matrix_group, "shape", &counts.shape())?;
+
+    write_dataset_to_h5_group(
+        &matrix_group,
+        "features/feature_type",
+        features.feature_type(),
     )?;
-    write_dataset_to_h5(&file, "matrix/data", counts.data())?;
-    write_dataset_to_h5(&file, "matrix/indices", counts.indices())?;
-    write_dataset_to_h5(&file, "matrix/indptr", counts.indptr().iter().as_slice())?;
-    write_dataset_to_h5(&file, "matrix/shape", &counts.shape())?;
+    write_dataset_to_h5_group(&matrix_group, "features/id", features.id())?;
+    write_dataset_to_h5_group(&matrix_group, "features/name", features.name())?;
 
-    let feature_types: Vec<_> = features
-        .feature_type()
-        .into_iter()
-        .map(|s| VarLenUnicode::from_str(s).unwrap())
-        .collect();
-    write_dataset_to_h5(&file, "features/feature_type", &feature_types)?;
-    write_dataset_to_h5(&file, "features/id", features.id())?;
-    write_dataset_to_h5(&file, "features/name", features.name())?;
+    write_annotations_csv(&path, &barcodes, &cell_annotations)?;
 
     Ok(())
 }
 
-fn write_dataset_to_h5(file: &File, path: &str, data: &[impl H5Type]) -> Result<(), Error> {
-    file.new_dataset_builder().with_data(data).create(path)?;
+fn write_dataset_to_h5_group<'d, A, T, D>(file: &Group, path: &str, data: A) -> Result<(), Error>
+where
+    A: Into<ArrayView<'d, T, D>>,
+    T: H5Type,
+    D: ndarray::Dimension,
+{
+    file.new_dataset_builder()
+        .with_data(data)
+        .create(path)
+        .map_err(|e| Error::WriteH5Object {
+            path: path.to_owned(),
+            reason: e.to_string(),
+        })?;
+
+    Ok(())
+}
+
+fn write_annotations_csv(
+    path: impl AsRef<Path>,
+    barcodes: &Barcodes,
+    annotations: &CellAnnotations,
+) -> Result<(), Error> {
+    #[derive(Debug, Serialize)]
+    struct CellAnnotation<'a> {
+        barcode: &'a str,
+        annotation: &'a str,
+    }
+
+    if barcodes.len() != annotations.len() {
+        return Err(Error::BarcodeAnnotationMismatch);
+    }
+
+    let mut writer = csv::Writer::from_path(path).unwrap();
+    for (barcode, annotation) in barcodes.iter().zip(annotations) {
+        writer
+            .serialize(CellAnnotation {
+                barcode,
+                annotation,
+            })
+            .unwrap();
+    }
 
     Ok(())
 }
 
 pub struct ReferenceDataset {
-    barcodes: Array1<VarLenUnicode>,
+    barcodes: Barcodes,
     counts: RawCscUmiCounts,
-    cell_annotations: Array1<VarLenUnicode>,
+    cell_annotations: CellAnnotations,
     features: Features,
 }
 
-// TODO: don't need thiserror
+type Barcodes = Array1<FixedAscii<64>>;
+
+type CellAnnotations = Array1<String>;
+
 #[derive(Debug, thiserror::Error, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Error {
-    #[error("HDF5 error: {reason}")]
-    Hdf5 { reason: String },
-    #[error("empty UMI counts")]
-    EmptyCounts,
-    #[error("transformed UMI counts")]
-    TransformedCounts,
-    #[error("normalized UMI counts")]
-    NormalizedCounts,
-    #[error("malformed count matrix: {reason}")]
-    MalformedMatrix { reason: String },
-    #[error("unknown encoding type")]
-    UnknownEncodingType,
-    #[error("incomplete features: {reason}")]
-    IncompleteFeatures { reason: String },
-    #[error("unable to write files to {path}: {reason}")]
+    #[error("invalid H5 file: {reason}")]
+    InvalidH5File { reason: String },
+    #[error(transparent)]
+    UmiCounts {
+        #[from]
+        error: umi_counts::Error,
+    },
+    #[error(transparent)]
+    Obs {
+        #[from]
+        error: obs::Error,
+    },
+    #[error(transparent)]
+    Var {
+        #[from]
+        error: var::Error,
+    },
+    #[error("number of cell barcodes != number of cell annotations")]
+    BarcodeAnnotationMismatch,
+    #[error("invalid output path: {reason}")]
     InvalidOutputPath { path: String, reason: String },
-    #[error("other")]
-    Other,
+    #[error("something went wrong writing H5 object: {reason}")]
+    WriteH5Object { path: String, reason: String },
+    #[error("something went wrong: {reason}")]
+    Other { reason: String },
 }
 
-impl From<hdf5_metno::Error> for Error {
-    fn from(err: hdf5_metno::Error) -> Self {
-        Self::Hdf5 {
-            reason: err.to_string(),
-        }
-    }
-}
-
-impl From<sprs::errors::StructureError> for Error {
-    fn from(err: sprs::errors::StructureError) -> Self {
-        Self::MalformedMatrix {
-            reason: err.to_string(),
+impl Error {
+    fn from_path_error(path: impl AsRef<Path>, error: impl std::error::Error) -> Self {
+        Self::InvalidOutputPath {
+            path: path.as_ref().to_str().map(str::to_owned).unwrap(),
+            reason: error.to_string(),
         }
     }
 }

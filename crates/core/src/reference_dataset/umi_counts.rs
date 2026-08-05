@@ -1,50 +1,93 @@
-use hdf5_metno::{Dataset, File, Group};
+use std::str::FromStr;
+
+use hdf5_metno::{Dataset, File, Group, types::VarLenUnicode};
 pub use matrix::RawCscUmiCounts;
+use serde::Serialize;
 
 use crate::reference_dataset::{
-    Error,
-    umi_counts::encoding_type::{DenseEncodingType, SparseEncodingType},
+    h5::{FieldType, ReadFieldError, read_1d_dataset, read_attribute, read_dataset_raw},
+    umi_counts::encoding_type::{DenseEncodingType, EncodingType, SparseEncodingType},
 };
 
 mod encoding_type;
 mod matrix;
 
 pub fn read_umi_counts_from_h5ad(file: &File) -> Result<RawCscUmiCounts, Error> {
-    const X: &str = "X";
-    // The actual counts (stored by scanpy as the highly-descriptive name "X") are
-    // usually stored as in compressed-sparse matrix format in a group, but they
-    // might also be in a dataset
-    match file.group(X) {
-        Ok(g) => read_x_group(&g),
-        Err(_) => read_x_dataset(&file.dataset(X)?),
+    let encoding_type: VarLenUnicode = read_attribute(file, "X/encoding-type")?;
+
+    let encoding_type =
+        EncodingType::from_str(&encoding_type).map_err(|_| Error::UnknownEncodingType {
+            found: encoding_type.to_string(),
+        })?;
+
+    match encoding_type {
+        EncodingType::Sparse(enc) => read_x_sparse(file, enc),
+        EncodingType::Dense(enc) => read_x_dense(file, enc),
     }
 }
 
-fn read_x_group(x: &Group) -> Result<RawCscUmiCounts, Error> {
-    let encoding_type = SparseEncodingType::from_group(x)?;
-
-    let data = x.dataset("data").and_then(|ds| ds.read_raw())?;
-
-    // scanpy writes these as int32, so reading them as int32 avoids a conversion
-    let indptr: Vec<i32> = x.dataset("indptr").and_then(|ds| ds.read_raw())?;
-    let indices: Vec<i32> = x.dataset("indices").and_then(|ds| ds.read_raw())?;
+fn read_x_sparse(file: &File, encoding_type: SparseEncodingType) -> Result<RawCscUmiCounts, Error> {
+    let data = read_dataset_raw(file, "X/data")?;
+    let indptr = read_dataset_raw(file, "X/indptr")?;
+    let indices = read_dataset_raw(file, "X/indices")?;
 
     // It's very nice that scanpy decides to store the shape as an attribute rather
     // than the following 10x Genomics and storing it as a dataset. It's great when
     // a library built to analyze data ends up changing the format of the data :)
-    let shape = x.attr("shape").and_then(|sh| sh.read_1d())?;
+    let shape = file
+        .attr("X/shape")
+        .and_then(|sh| sh.read_1d())
+        .map_err(|_| Error::MalformedCounts {
+            error: ReadFieldError::DataTypeOrMissing {
+                field_type: FieldType::Attribute,
+                path: "X/shape".to_owned(),
+            },
+        })?;
     let shape = (shape[0], shape[1]);
 
     RawCscUmiCounts::from_sparse_matrix(shape, indptr, indices, data, encoding_type)
 }
 
-fn read_x_dataset(x: &Dataset) -> Result<RawCscUmiCounts, Error> {
-    let encoding_type = DenseEncodingType::from_dataset(x)?;
-    let counts = match encoding_type {
-        DenseEncodingType::Array => x.read_2d()?,
-    };
+fn read_x_dense(file: &File, encoding_type: DenseEncodingType) -> Result<RawCscUmiCounts, Error> {
+    let counts =
+        file.dataset("X")
+            .and_then(|ds| ds.read_2d())
+            .map_err(|_| Error::MalformedMatrix {
+                reason: "failed to read counts in dataset 'X' as 2D array".to_owned(),
+            })?;
 
-    RawCscUmiCounts::from_dense_matrix(&counts)
+    RawCscUmiCounts::from_dense_matrix(&counts, encoding_type)
+}
+
+#[derive(Debug, thiserror::Error, Clone, Serialize)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum Error {
+    #[error(transparent)]
+    MalformedCounts {
+        #[from]
+        error: ReadFieldError,
+    },
+    #[error(
+        "unknown encoding type: '{found}'. Expected one of: {:?}",
+        EncodingType::VARIANTS
+    )]
+    UnknownEncodingType { found: String },
+    #[error("empty counts")]
+    EmptyCounts,
+    #[error("transformed counts")]
+    TransformedCounts,
+    #[error("normalized counts")]
+    NormalizedCounts,
+    #[error("malformed matrix: {reason}")]
+    MalformedMatrix { reason: String },
+}
+
+impl From<sprs::errors::StructureError> for Error {
+    fn from(err: sprs::errors::StructureError) -> Self {
+        Self::MalformedMatrix {
+            reason: err.to_string(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -58,7 +101,7 @@ mod tests {
         // The last one apparently has some compression applied to it because of
         // scanpy.write's default behavior. It's really nice that scanpy's default
         // behavior differs from anndata's default behavior :)
-        let files = ["csr_adata", "csc_adata", "dense_adata", "WT_mouse_spinal_cord_P112_specimen_1_WT_mouse_spinal_cord_P112_specimen_1_sample_filtered_feature_bc_matrix"]
+        let files = ["csr_adata", "csc_adata", "dense_adata", "10k_Human_DTC_Melanoma_3p_gemx_10k_Human_DTC_Melanoma_3p_gemx_count_sample_filtered_feature_bc_matrix"]
             .map(|fname| format!("test-data/{fname}.h5ad"))
             .map(|path| File::open(path).unwrap());
 
@@ -72,7 +115,7 @@ mod tests {
             if filename.contains("adata") {
                 assert_eq!(
                     counts.data()[0],
-                    10.,
+                    10,
                     "first entry in UMI counts of {filename} != 10"
                 );
             }

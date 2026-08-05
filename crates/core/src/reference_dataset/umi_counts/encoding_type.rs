@@ -2,36 +2,41 @@ use std::{ops::Deref, str::FromStr};
 
 use hdf5_metno::{Dataset, Group, Location, types::VarLenUnicode};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, strum::EnumString)]
+#[derive(Clone, Copy, Debug, strum::Display)]
+pub enum EncodingType {
+    #[strum(transparent)]
+    Dense(DenseEncodingType),
+    #[strum(transparent)]
+    Sparse(SparseEncodingType),
+}
+
+impl EncodingType {
+    pub const VARIANTS: &'static [&'static str] = &["array", "csr_matrix", "csc_matrix"];
+}
+
+// We don't actually need a good error here because the caller decides what to do
+impl FromStr for EncodingType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match SparseEncodingType::from_str(s).map(Self::Sparse) {
+            Ok(enc) => Ok(enc),
+            Err(_) => DenseEncodingType::from_str(s)
+                .map(Self::Dense)
+                .map_err(|_| ()),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum DenseEncodingType {
     Array,
 }
 
-impl DenseEncodingType {
-    pub fn from_dataset(ds: &Dataset) -> Result<Self, super::Error> {
-        encoding_type(&**ds)
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, strum::EnumString)]
+#[derive(Clone, Copy, Debug, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum SparseEncodingType {
     CsrMatrix,
     CscMatrix,
-}
-
-impl SparseEncodingType {
-    pub fn from_group(group: &Group) -> Result<Self, super::Error> {
-        encoding_type(group)
-    }
-}
-
-fn encoding_type<T>(x: &impl Deref<Target = Location>) -> Result<T, super::Error>
-where
-    T: FromStr,
-{
-    let encoding_type: VarLenUnicode = x.attr("encoding-type").and_then(|a| a.read_scalar())?;
-
-    T::from_str(encoding_type.as_str()).map_err(|_| super::Error::UnknownEncodingType)
 }

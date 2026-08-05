@@ -262,14 +262,14 @@ struct UnvalidatedGene {
     gene_name: Option<UnvalidatedGeneName>,
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct Error {
     line_number: Option<u64>,
     submitted_target: Option<UnvalidatedTarget>,
     errors: Vec<ErrorInner>,
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum ErrorInner {
     MissingField {
