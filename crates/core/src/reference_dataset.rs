@@ -111,7 +111,7 @@ pub fn write_reference_dataset(
     write_dataset_to_h5_group(&matrix_group, "features/id", features.id())?;
     write_dataset_to_h5_group(&matrix_group, "features/name", features.name())?;
 
-    write_annotations_csv(path, barcodes, cell_annotations)?;
+    write_annotations_csv(path.join("annotations.csv"), barcodes, cell_annotations)?;
 
     Ok(())
 }
@@ -161,6 +161,12 @@ fn write_annotations_csv(
     Ok(())
 }
 
+type Barcode = FixedAscii<64>;
+
+type Barcodes = Array1<Barcode>;
+
+type CellAnnotations = Array1<String>;
+
 #[derive(Debug, PartialEq)]
 pub struct ReferenceDataset {
     barcodes: Barcodes,
@@ -168,10 +174,6 @@ pub struct ReferenceDataset {
     cell_annotations: CellAnnotations,
     features: Features,
 }
-
-type Barcodes = Array1<FixedAscii<64>>;
-
-type CellAnnotations = Array1<String>;
 
 #[derive(Clone, Debug, thiserror::Error, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -214,12 +216,16 @@ impl Error {
 
 #[cfg(test)]
 mod tests {
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
 
     use anyhow::Context;
+    use hdf5_metno::types::{FixedAscii, VarLenUnicode};
 
     use crate::reference_dataset::{
-        umi_counts::read_umi_counts_from_h5ad, validate_reference_dataset,
+        Barcode,
+        h5::read_1d_dataset,
+        validate_reference_dataset,
+        var::{EnsemblId, GeneName},
     };
 
     #[test]
@@ -263,12 +269,49 @@ mod tests {
     fn read_real_h5ad() {
         let filename = "test-data/10k_Human_DTC_Melanoma_3p_gemx_10k_Human_DTC_Melanoma_3p_gemx_count_sample_filtered_feature_bc_matrix.h5ad";
 
-        let data =
+        let reconstructed_dataset =
             validate_reference_dataset(filename, "barcode", "annotation", "gene_ids", "gene_name")
                 .map_err(|e| e[0].clone())
                 .context(format!("failed to validate {filename}"))
                 .unwrap();
 
-        assert!(data.features.id().len() > 30_000)
+        // Compare it against the original data
+        let original_h5 = hdf5_metno::File::open("test-data/10k_Human_DTC_Melanoma_3p_gemx_10k_Human_DTC_Melanoma_3p_gemx_count_sample_filtered_feature_bc_matrix.h5").unwrap();
+
+        let original_counts = read_1d_dataset::<i32>(&original_h5, "matrix/data").unwrap();
+        assert_eq!(
+            original_counts.as_slice().unwrap(),
+            reconstructed_dataset.counts.data(),
+            "UMI counts were not correctly reconstructed"
+        );
+
+        let original_indices = read_1d_dataset::<i64>(&original_h5, "matrix/indices").unwrap();
+        assert_eq!(
+            original_indices.as_slice().unwrap(),
+            reconstructed_dataset.counts.indices(),
+            "UMI count indices were not correctly reconstructed"
+        );
+
+        let original_indptr = read_1d_dataset::<i64>(&original_h5, "matrix/indptr").unwrap();
+        assert_eq!(
+            original_indptr.as_slice().unwrap(),
+            reconstructed_dataset.counts.indptr().iter().as_slice(),
+            "UMI counts indptr was not correctly reconstructed"
+        );
+
+        let original_barcodes =
+            read_1d_dataset::<FixedAscii<64>>(&original_h5, "matrix/barcodes").unwrap();
+        assert_eq!(original_barcodes, reconstructed_dataset.barcodes);
+
+        let original_feature_ids =
+            read_1d_dataset::<EnsemblId>(&original_h5, "matrix/features/id").unwrap();
+        assert_eq!(original_feature_ids, reconstructed_dataset.features.id());
+
+        let original_feature_names =
+            read_1d_dataset::<GeneName>(&original_h5, "matrix/features/name").unwrap();
+        assert_eq!(
+            original_feature_names,
+            reconstructed_dataset.features.name()
+        );
     }
 }

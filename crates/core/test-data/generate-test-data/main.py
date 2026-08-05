@@ -138,7 +138,8 @@ def main():
         adata.write_h5ad(f"../{name}.h5ad")
 
     filename = "../10k_Human_DTC_Melanoma_3p_gemx_10k_Human_DTC_Melanoma_3p_gemx_count_sample_filtered_feature_bc_matrix.h5"
-    tenx_adata = sc.pp.subsample(sc.read_10x_h5(filename), 0.25, copy=True)
+    # tenx_adata = sc.pp.subsample(sc.read_10x_h5(filename), 0.25, copy=True)
+    tenx_adata = sc.read_10x_h5(filename)
 
     tenx_adata.obs["barcode"] = tenx_adata.obs.index
     tenx_adata.obs["annotation"] = [

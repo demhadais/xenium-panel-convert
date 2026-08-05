@@ -45,9 +45,12 @@ fn main() -> anyhow::Result<()> {
         } => {
             let results = validate_reference_datasets(&args, species, chemistry)?;
 
-            for (result, path) in results.iter().zip(args.paths()) {
+            for (result, path) in results
+                .iter()
+                .zip(args.paths().iter().map(|p| p.with_extension("")))
+            {
                 match result {
-                    Ok(ds) => write_reference_dataset(path, ds)
+                    Ok(ds) => write_reference_dataset(&path, ds)
                         .with_context(|| format!("failed to write dataset to {path}"))?,
                     Err(e) => match output_format {
                         Format::Json => write_json_report(e, output.as_deref())?,

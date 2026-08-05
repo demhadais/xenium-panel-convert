@@ -31,20 +31,26 @@ pub fn read_features_from_h5ad(
 
 fn check_genes_are_from_correct_genome() {}
 
+// Human Ensembl IDs are 15 characters while mouse Ensembl IDs are 18
+pub type EnsemblId = FixedAscii<18>;
+
+pub type EnsemblIds = Array1<EnsemblId>;
+
+// No gene name is likely to exceed 32 characters
+pub type GeneName = FixedAscii<32>;
+
+pub type GeneNames = Array1<GeneName>;
+
+pub type FeatureType = FixedAscii<32>;
+
+pub type FeatureTypes = Array1<FeatureType>;
+
 #[derive(Debug, PartialEq)]
 pub struct Features {
     id: EnsemblIds,
     name: GeneNames,
     feature_type: FeatureTypes,
 }
-
-// Human Ensembl IDs are 15 characters while mouse Ensembl IDs are 18
-type EnsemblIds = Array1<FixedAscii<18>>;
-
-// No gene name is likely to exceed 32 characters
-type GeneNames = Array1<FixedAscii<32>>;
-
-type FeatureTypes = Array1<FixedAscii<32>>;
 
 impl Features {
     pub fn id(&self) -> &EnsemblIds {
