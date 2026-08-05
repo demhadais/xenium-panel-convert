@@ -1,13 +1,9 @@
-use hdf5_metno::{
-    File,
-    types::{FixedAscii, VarLenUnicode},
-};
-use ndarray::Array1;
+use hdf5_metno::File;
 use serde::Serialize;
 
 use crate::reference_dataset::{
     Barcodes, CellAnnotations,
-    h5::{self, ReadFieldError, read_1d_dataset, read_1d_string_dataset, to_ascii},
+    h5::{self, ReadFieldError, read_1d_string_dataset, to_ascii},
 };
 
 // Read these into String because we will write them to a CSV, so we need serde support

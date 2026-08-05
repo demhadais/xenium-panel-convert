@@ -1,11 +1,11 @@
-use std::{borrow::Cow, ops::Deref};
+use std::borrow::Cow;
 
-use ndarray::{Array, Array1, Array2};
-use sprs::{CsMatBase, CsMatI};
+use ndarray::Array2;
+use sprs::CsMatI;
 
 use crate::reference_dataset::umi_counts::{
     Error,
-    encoding_type::{DenseEncodingType, EncodingType, SparseEncodingType},
+    encoding_type::{DenseEncodingType, SparseEncodingType},
     matrix::csc::CscMatrix,
 };
 

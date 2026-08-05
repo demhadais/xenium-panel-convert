@@ -1,7 +1,7 @@
-use std::{path, str::FromStr};
+use std::str::FromStr;
 
 use hdf5_metno::{
-    Attribute, File, H5Type,
+    File, H5Type,
     types::{FixedAscii, VarLenUnicode},
 };
 use ndarray::Array1;
@@ -18,7 +18,7 @@ pub fn read_attribute<T: H5Type>(file: &File, path: &str) -> Result<T, ReadField
 }
 
 pub fn read_1d_dataset<T: H5Type>(file: &File, path: &str) -> Result<Array1<T>, ReadFieldError> {
-    file.dataset(&path)
+    file.dataset(path)
         .and_then(|ds| ds.read_1d())
         .map_err(|_| ReadFieldError::DataTypeOrMissing {
             field_type: FieldType::Dataset,
@@ -27,7 +27,7 @@ pub fn read_1d_dataset<T: H5Type>(file: &File, path: &str) -> Result<Array1<T>, 
 }
 
 pub fn read_dataset_raw<T: H5Type>(file: &File, path: &str) -> Result<Vec<T>, ReadFieldError> {
-    file.dataset(&path)
+    file.dataset(path)
         .and_then(|ds| ds.read_raw())
         .map_err(|_| ReadFieldError::DataTypeOrMissing {
             field_type: FieldType::Dataset,

@@ -39,13 +39,13 @@ fn main() -> anyhow::Result<()> {
                 CommonOptions {
                     species,
                     chemistry,
-                    output_format,
+                    output_format: _,
                     output,
                 },
         } => {
             let results = validate_reference_datasets(&args, species, chemistry)?;
 
-            for (i, (result, path)) in results.iter().zip(args.paths()).enumerate() {
+            for (result, path) in results.iter().zip(args.paths()) {
                 match result {
                     Ok(ds) => write_reference_dataset(path, ds)
                         .with_context(|| format!("failed to write dataset to {path}"))?,

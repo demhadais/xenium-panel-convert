@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
-use hdf5_metno::{Dataset, File, Group, types::VarLenUnicode};
+use hdf5_metno::{File, types::VarLenUnicode};
 pub use matrix::RawCscUmiCounts;
 use serde::Serialize;
 
 use crate::reference_dataset::{
-    h5::{FieldType, ReadFieldError, read_1d_dataset, read_attribute, read_dataset_raw},
+    h5::{FieldType, ReadFieldError, read_attribute, read_dataset_raw},
     umi_counts::encoding_type::{DenseEncodingType, EncodingType, SparseEncodingType},
 };
 
@@ -16,7 +16,7 @@ pub fn read_umi_counts_from_h5ad(file: &File) -> Result<RawCscUmiCounts, Error> 
     let encoding_type: VarLenUnicode = read_attribute(file, "X/encoding-type")?;
 
     let encoding_type =
-        EncodingType::from_str(&encoding_type).map_err(|_| Error::UnknownEncodingType {
+        EncodingType::from_str(&encoding_type).map_err(|()| Error::UnknownEncodingType {
             found: encoding_type.to_string(),
         })?;
 

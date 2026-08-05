@@ -1,6 +1,5 @@
-use std::{ops::Deref, str::FromStr};
+use std::str::FromStr;
 
-use hdf5_metno::{Dataset, Group, Location, types::VarLenUnicode};
 
 #[derive(Clone, Copy, Debug, strum::Display)]
 pub enum EncodingType {

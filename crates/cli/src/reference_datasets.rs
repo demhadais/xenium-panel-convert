@@ -1,8 +1,7 @@
-use anyhow::Context;
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::Utf8PathBuf;
 use serde::Serialize;
 use xenium_panel_validate_core::reference_dataset::{
-    self, ReferenceDataset, validate_reference_dataset, write_reference_dataset,
+    self, ReferenceDataset, validate_reference_dataset,
 };
 
 use crate::targets::{Chemistry, Species};
@@ -16,8 +15,8 @@ pub fn validate_reference_datasets(
         ensembl_id_cols,
         gene_name_cols,
     }: &CommandlineArgs,
-    species: Species,
-    chemistry: Chemistry,
+    _species: Species,
+    _chemistry: Chemistry,
 ) -> anyhow::Result<Vec<Result<ReferenceDataset, DatasetErrors>>> {
     anyhow::ensure!(
         paths.len() == cell_barcode_cols.len()
@@ -48,7 +47,7 @@ pub fn validate_reference_datasets(
                 path: path.to_owned(),
                 errors,
             })),
-        };
+        }
     }
 
     Ok(results)
@@ -69,6 +68,7 @@ pub struct CommandlineArgs {
 }
 
 impl CommandlineArgs {
+    #[must_use]
     pub fn paths(&self) -> &[Utf8PathBuf] {
         &self.paths
     }

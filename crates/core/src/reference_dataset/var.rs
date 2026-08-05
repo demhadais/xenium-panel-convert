@@ -1,11 +1,11 @@
 use hdf5_metno::{
     File,
-    types::{FixedAscii, VarLenUnicode},
+    types::FixedAscii,
 };
 use ndarray::Array1;
 use serde::Serialize;
 
-use crate::reference_dataset::h5::{read_1d_dataset, read_1d_string_dataset, to_ascii};
+use crate::reference_dataset::h5::{read_1d_string_dataset, to_ascii};
 
 pub fn read_features_from_h5ad(
     file: &File,

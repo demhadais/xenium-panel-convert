@@ -62,7 +62,7 @@ pub async fn write_gene_maps() -> anyhow::Result<()> {
             &PathBuf::from(format!("src/gene_list/chemistry/{filename}")),
             map_name,
             gene_map,
-        )?
+        )?;
     }
 
     Ok(())
@@ -74,7 +74,7 @@ struct Config {
     xenium_prime_gene_list: Url,
 }
 
-fn construct_maps<'a>(gene_list: &'a [Gene]) -> GeneMaps<'a> {
+fn construct_maps(gene_list: &[Gene]) -> GeneMaps<'_> {
     fn insert_gene<'a>(
         ensembl_id: &'a str,
         gene_symbol: &'a str,
@@ -90,13 +90,13 @@ fn construct_maps<'a>(gene_list: &'a [Gene]) -> GeneMaps<'a> {
         species,
         ensembl_id,
         gene_symbol,
-    } in gene_list.as_ref()
+    } in gene_list
     {
         match species.as_str() {
-            "Homo sapiens" => insert_gene(&ensembl_id, &gene_symbol, &mut homo_sapiens),
-            "Mus musculus" => insert_gene(&ensembl_id, &gene_symbol, &mut mus_musculus),
+            "Homo sapiens" => insert_gene(ensembl_id, gene_symbol, &mut homo_sapiens),
+            "Mus musculus" => insert_gene(ensembl_id, gene_symbol, &mut mus_musculus),
             s => panic!("species {s} not expected"),
-        };
+        }
     }
 
     GeneMaps {

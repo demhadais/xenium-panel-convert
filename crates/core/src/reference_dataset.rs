@@ -1,18 +1,16 @@
 use std::{
     fs,
-    path::{Path, PathBuf},
-    str::FromStr,
+    path::Path,
 };
 
 use hdf5_metno::{
-    File, Group, H5Type, MajorErrorCode, MinorErrorCode,
-    types::{FixedAscii, FixedUnicode, VarLenUnicode},
+    File, Group, H5Type,
+    types::FixedAscii,
 };
 use ndarray::{Array1, ArrayView};
 use serde::Serialize;
 
 use crate::reference_dataset::{
-    self,
     obs::{read_cell_annotations_from_h5ad, read_cell_barcodes_from_h5ad},
     umi_counts::{RawCscUmiCounts, read_umi_counts_from_h5ad},
     var::{Features, read_features_from_h5ad},
@@ -97,7 +95,7 @@ pub fn write_reference_dataset(
 ) -> Result<(), Error> {
     let path = path.as_ref();
 
-    fs::create_dir_all(&path).map_err(|e| Error::from_path_error(&path, e))?;
+    fs::create_dir_all(path).map_err(|e| Error::from_path_error(path, e))?;
 
     let matrix_path = path.join("matrix.h5");
     let file =
@@ -119,7 +117,7 @@ pub fn write_reference_dataset(
     write_dataset_to_h5_group(&matrix_group, "features/id", features.id())?;
     write_dataset_to_h5_group(&matrix_group, "features/name", features.name())?;
 
-    write_annotations_csv(&path, &barcodes, &cell_annotations)?;
+    write_annotations_csv(path, barcodes, cell_annotations)?;
 
     Ok(())
 }
