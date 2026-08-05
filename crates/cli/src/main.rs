@@ -39,7 +39,7 @@ fn main() -> anyhow::Result<()> {
                 CommonOptions {
                     species,
                     chemistry,
-                    output_format: _,
+                    output_format,
                     output,
                 },
         } => {
@@ -49,7 +49,9 @@ fn main() -> anyhow::Result<()> {
                 match result {
                     Ok(ds) => write_reference_dataset(path, ds)
                         .with_context(|| format!("failed to write dataset to {path}"))?,
-                    Err(e) => write_json_report(e, output.as_deref())?,
+                    Err(e) => match output_format {
+                        Format::Json => write_json_report(e, output.as_deref())?,
+                    },
                 }
             }
         }
