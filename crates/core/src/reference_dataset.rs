@@ -161,6 +161,7 @@ fn write_annotations_csv(
     Ok(())
 }
 
+#[derive(Debug, PartialEq)]
 pub struct ReferenceDataset {
     barcodes: Barcodes,
     counts: RawCscUmiCounts,
@@ -172,7 +173,7 @@ type Barcodes = Array1<FixedAscii<64>>;
 
 type CellAnnotations = Array1<String>;
 
-#[derive(Debug, thiserror::Error, Serialize)]
+#[derive(Clone, Debug, thiserror::Error, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Error {
     #[error("invalid H5 file: {reason}")]
@@ -208,5 +209,66 @@ impl Error {
             path: path.as_ref().to_str().map(str::to_owned).unwrap(),
             reason: error.to_string(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use anyhow::Context;
+
+    use crate::reference_dataset::{
+        umi_counts::read_umi_counts_from_h5ad, validate_reference_dataset,
+    };
+
+    #[test]
+    fn read_generated_h5ad_files() {
+        let paths = [
+            "test-data/csr_adata.h5ad",
+            "test-data/csc_adata.h5ad",
+            "test-data/dense_adata.h5ad",
+        ]
+        .map(|f| Path::new(f));
+
+        let mut fake_counts = Vec::with_capacity(paths.len());
+
+        for path in paths {
+            let filename = path.to_str().unwrap();
+            let reference_dataset = validate_reference_dataset(
+                path,
+                "barcode",
+                "annotation",
+                "ensembl_id",
+                "gene_name",
+            )
+            .map_err(|e| e[0].clone())
+            .context(format!("failed to validate {filename}"))
+            .unwrap();
+
+            assert_eq!(
+                reference_dataset.counts.data()[0],
+                10,
+                "first entry in UMI counts of {filename} != 10"
+            );
+
+            fake_counts.push(reference_dataset.counts);
+        }
+
+        assert_eq!(fake_counts[0], fake_counts[1]);
+        assert_eq!(fake_counts[0], fake_counts[2]);
+    }
+
+    #[test]
+    fn read_real_h5ad() {
+        let filename = "test-data/10k_Human_DTC_Melanoma_3p_gemx_10k_Human_DTC_Melanoma_3p_gemx_count_sample_filtered_feature_bc_matrix.h5ad";
+
+        let data =
+            validate_reference_dataset(filename, "barcode", "annotation", "gene_ids", "gene_name")
+                .map_err(|e| e[0].clone())
+                .context(format!("failed to validate {filename}"))
+                .unwrap();
+
+        assert!(data.features.id().len() > 30_000)
     }
 }

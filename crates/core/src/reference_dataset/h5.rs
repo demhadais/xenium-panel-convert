@@ -1,15 +1,31 @@
 use std::str::FromStr;
 
 use hdf5_metno::{
-    File, H5Type,
+    Container, File, H5Type,
     types::{FixedAscii, VarLenUnicode},
 };
 use ndarray::Array1;
 use serde::Serialize;
 use strum::VariantNames;
 
-pub fn read_attribute<T: H5Type>(file: &File, path: &str) -> Result<T, ReadFieldError> {
-    file.attr(path)
+pub fn read_container(file: &File, path: &str) -> Result<Container, ReadFieldError> {
+    let container = match file.group(path) {
+        Ok(g) => g.as_container().unwrap(),
+        Err(_) => file
+            .dataset(path)
+            .and_then(|ds| ds.as_container())
+            .map_err(|_| ReadFieldError::DataTypeOrMissing {
+                field_type: FieldType::Container,
+                path: path.to_owned(),
+            })?,
+    };
+
+    Ok(container)
+}
+
+pub fn read_attribute<T: H5Type>(container: &Container, path: &str) -> Result<T, ReadFieldError> {
+    container
+        .attr(path)
         .and_then(|a| a.read_scalar())
         .map_err(|_| ReadFieldError::DataTypeOrMissing {
             field_type: FieldType::Attribute,
@@ -39,7 +55,8 @@ pub fn read_1d_string_dataset(
     file: &File,
     path: &str,
 ) -> Result<Array1<VarLenUnicode>, ReadFieldError> {
-    let encoding_type: VarLenUnicode = read_attribute(file, &format!("{path}/encoding-type"))?;
+    let encoding_type: VarLenUnicode =
+        read_attribute(&read_container(file, path)?, "encoding-type")?;
 
     let encoding_type = StringEncodingType::from_str(&encoding_type).map_err(|_| {
         ReadFieldError::UnknownEncodingType {
@@ -54,10 +71,6 @@ pub fn read_1d_string_dataset(
         StringEncodingType::StringArray => read_string_array(file, path),
         StringEncodingType::NullableStringArray => read_nullable_string_array(file, path),
     }
-}
-
-pub fn to_ascii<const N: usize>(s: &VarLenUnicode) -> FixedAscii<N> {
-    FixedAscii::from_ascii(&s).expect("all strings are ASCII in this context")
 }
 
 fn read_categorical_array(
@@ -106,6 +119,10 @@ fn read_nullable_string_array(
     read_string_array(file, &format!("{path}/values"))
 }
 
+pub fn to_ascii<const N: usize>(s: &VarLenUnicode) -> FixedAscii<N> {
+    FixedAscii::from_ascii(&s).expect("all strings are ASCII in this context")
+}
+
 #[derive(Clone, Copy, Debug, strum::EnumString, strum::VariantNames)]
 #[strum(serialize_all = "kebab-case")]
 pub enum StringEncodingType {
@@ -137,6 +154,7 @@ pub enum ReadFieldError {
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
     Attribute,
+    Container,
     Dataset,
     Group,
 }

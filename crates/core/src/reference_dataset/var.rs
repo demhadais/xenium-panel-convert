@@ -31,6 +31,7 @@ pub fn read_features_from_h5ad(
 
 fn check_genes_are_from_correct_genome() {}
 
+#[derive(Debug, PartialEq)]
 pub struct Features {
     id: EnsemblIds,
     name: GeneNames,
@@ -59,7 +60,7 @@ impl Features {
     }
 }
 
-#[derive(thiserror::Error, Serialize, Debug)]
+#[derive(Clone, thiserror::Error, Serialize, Debug)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Error {
     #[error("incomplete features: {reason}")]

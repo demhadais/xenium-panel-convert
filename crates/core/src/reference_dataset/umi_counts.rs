@@ -5,7 +5,7 @@ pub use matrix::RawCscUmiCounts;
 use serde::Serialize;
 
 use crate::reference_dataset::{
-    h5::{FieldType, ReadFieldError, read_attribute, read_dataset_raw},
+    h5::{FieldType, ReadFieldError, read_attribute, read_container, read_dataset_raw},
     umi_counts::encoding_type::{DenseEncodingType, EncodingType, SparseEncodingType},
 };
 
@@ -13,7 +13,8 @@ mod encoding_type;
 mod matrix;
 
 pub fn read_umi_counts_from_h5ad(file: &File) -> Result<RawCscUmiCounts, Error> {
-    let encoding_type: VarLenUnicode = read_attribute(file, "X/encoding-type")?;
+    let encoding_type: VarLenUnicode =
+        read_attribute(&read_container(file, "X")?, "encoding-type")?;
 
     let encoding_type =
         EncodingType::from_str(&encoding_type).map_err(|()| Error::UnknownEncodingType {
@@ -35,7 +36,8 @@ fn read_x_sparse(file: &File, encoding_type: SparseEncodingType) -> Result<RawCs
     // than the following 10x Genomics and storing it as a dataset. It's great when
     // a library built to analyze data ends up changing the format of the data :)
     let shape = file
-        .attr("X/shape")
+        .group("X")
+        .and_then(|x| x.attr("shape"))
         .and_then(|sh| sh.read_1d())
         .map_err(|_| Error::MalformedCounts {
             error: ReadFieldError::DataTypeOrMissing {

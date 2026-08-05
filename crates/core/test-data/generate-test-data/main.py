@@ -115,6 +115,7 @@ def main():
 
     rng = np.random.default_rng()
     counts = rng.integers(0, 10, size=(n_cells, len(GENES)))
+    counts[0] = 10
 
     csr_adata = ad.AnnData(csr_matrix(counts, dtype=np.float32))
     csc_adata = ad.AnnData(csc_matrix(counts, dtype=np.float32))
@@ -126,17 +127,26 @@ def main():
         ("dense_adata", dense_adata),
     ]:
         adata.obs_names = [f"cell_{i}" for i in range(n_cells)]
-        adata.obs["annotation"] = (["group1"] * 5) + (["group2"] * 5)
+        adata.obs["barcode"] = adata.obs_names
+        adata.obs["annotation"] = [f"group{i % 2}" for i in range(len(adata.obs.index))]
 
         adata.var_names = list(gene_names)
         adata.var["ensembl_id"] = list(ensembl_ids)
         adata.var["gene_name"] = list(gene_names)
+        adata.var["feature_types"] = ["Gene Expression"] * len(adata.var)
 
         adata.write_h5ad(f"../{name}.h5ad")
 
     filename = "../10k_Human_DTC_Melanoma_3p_gemx_10k_Human_DTC_Melanoma_3p_gemx_count_sample_filtered_feature_bc_matrix.h5"
-    tenx_adata = sc.read_10x_h5(filename)
-    sc.write(f"{filename}ad", sc.pp.subsample(tenx_adata, 0.01, copy=True))
+    tenx_adata = sc.pp.subsample(sc.read_10x_h5(filename), 0.25, copy=True)
+
+    tenx_adata.obs["barcode"] = tenx_adata.obs.index
+    tenx_adata.obs["annotation"] = [
+        f"group_{i % 2}" for i in range(len(tenx_adata.obs.index))
+    ]
+    tenx_adata.var["gene_name"] = tenx_adata.var_names
+
+    sc.write(f"{filename}ad", tenx_adata)
 
 
 if __name__ == "__main__":
