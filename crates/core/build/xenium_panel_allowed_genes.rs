@@ -9,7 +9,7 @@ use bytes::Bytes;
 use serde::Deserialize;
 use url::Url;
 
-pub async fn write_gene_maps() -> anyhow::Result<()> {
+pub(crate) async fn write_gene_maps() -> anyhow::Result<()> {
     let Config {
         xenium_v1_gene_list,
         xenium_prime_gene_list,
@@ -121,7 +121,7 @@ fn write_map_to_file(
 
     writeln!(
         file_writer,
-        "pub static {map_name}: phf::Map<&'static str, &'static str> = {};",
+        "pub(super) static {map_name}: phf::Map<&'static str, &'static str> = {};",
         map.build()
     )?;
 

@@ -1,10 +1,11 @@
 use std::{fs, path::Path};
 
-use hdf5_metno::{File, Group, H5Type, types::FixedAscii};
-use ndarray::{Array1, ArrayView};
+use hdf5_metno::{File, types::FixedAscii};
+use ndarray::Array1;
 use serde::Serialize;
 
 use crate::reference_dataset::{
+    h5::write_dataset_to_h5_group,
     obs::{read_cell_annotations_from_h5ad, read_cell_barcodes_from_h5ad},
     umi_counts::{RawCscUmiCounts, read_umi_counts_from_h5ad},
     var::{Features, read_features_from_h5ad},
@@ -15,6 +16,11 @@ mod h5;
 mod obs;
 mod umi_counts;
 mod var;
+
+pub use h5::{FieldType, ReadFieldError};
+pub use obs::Error as ObsError;
+pub use umi_counts::Error as UmiCountsError;
+pub use var::Error as VarError;
 
 pub fn validate_reference_dataset(
     path: impl AsRef<Path>,
@@ -116,23 +122,6 @@ pub fn write_reference_dataset(
     Ok(())
 }
 
-fn write_dataset_to_h5_group<'d, A, T, D>(file: &Group, path: &str, data: A) -> Result<(), Error>
-where
-    A: Into<ArrayView<'d, T, D>>,
-    T: H5Type,
-    D: ndarray::Dimension,
-{
-    file.new_dataset_builder()
-        .with_data(data)
-        .create(path)
-        .map_err(|e| Error::WriteH5Object {
-            path: path.to_owned(),
-            reason: e.to_string(),
-        })?;
-
-    Ok(())
-}
-
 fn write_annotations_csv(
     path: impl AsRef<Path>,
     barcodes: &Barcodes,
@@ -183,17 +172,17 @@ pub enum Error {
     #[error(transparent)]
     UmiCounts {
         #[from]
-        error: umi_counts::Error,
+        error: UmiCountsError,
     },
     #[error(transparent)]
     Obs {
         #[from]
-        error: obs::Error,
+        error: ObsError,
     },
     #[error(transparent)]
     Var {
         #[from]
-        error: var::Error,
+        error: VarError,
     },
     #[error("number of cell barcodes != number of cell annotations")]
     BarcodeAnnotationMismatch,
@@ -201,8 +190,6 @@ pub enum Error {
     InvalidOutputPath { path: String, reason: String },
     #[error("something went wrong writing H5 object: {reason}")]
     WriteH5Object { path: String, reason: String },
-    #[error("something went wrong: {reason}")]
-    Other { reason: String },
 }
 
 impl Error {

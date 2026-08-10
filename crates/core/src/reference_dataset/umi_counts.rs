@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use hdf5_metno::{File, types::VarLenUnicode};
-pub use matrix::RawCscUmiCounts;
+pub(crate) use matrix::RawCscUmiCounts;
 use serde::Serialize;
 
 use crate::reference_dataset::{
@@ -12,7 +12,7 @@ use crate::reference_dataset::{
 mod encoding_type;
 mod matrix;
 
-pub fn read_umi_counts_from_h5ad(file: &File) -> Result<RawCscUmiCounts, Error> {
+pub(crate) fn read_umi_counts_from_h5ad(file: &File) -> Result<RawCscUmiCounts, Error> {
     let encoding_type: VarLenUnicode =
         read_attribute(&read_container(file, "X")?, "encoding-type")?;
 

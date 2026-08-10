@@ -4,7 +4,7 @@ use csv::StringRecord;
 
 use crate::gene_list::{Error, ErrorInner};
 
-pub fn read_csv_trimmed(target_list: &str) -> csv::Reader<&[u8]> {
+pub(super) fn read_csv_trimmed(target_list: &str) -> csv::Reader<&[u8]> {
     let target_list = target_list.trim();
 
     csv::ReaderBuilder::new()
@@ -12,7 +12,7 @@ pub fn read_csv_trimmed(target_list: &str) -> csv::Reader<&[u8]> {
         .from_reader(target_list.as_bytes())
 }
 
-pub fn rename_fields(
+pub(super) fn rename_fields(
     original_fieldnames: &StringRecord,
     field_aliases: &HashMap<&str, &str>,
 ) -> (StringRecord, Option<Error>) {
@@ -42,7 +42,7 @@ pub fn rename_fields(
     )
 }
 
-pub fn extract_record<'a>(
+pub(super) fn extract_record<'a>(
     record: Result<&'a StringRecord, &'a csv::Error>,
     errors: &mut Vec<Error>,
 ) -> Option<&'a StringRecord> {

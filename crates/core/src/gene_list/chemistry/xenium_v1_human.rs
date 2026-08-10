@@ -1,4 +1,4 @@
-pub static XENIUM_V1_HUMAN_GENES: phf::Map<&'static str, &'static str> = ::phf::Map {
+pub(super) static XENIUM_V1_HUMAN_GENES: phf::Map<&'static str, &'static str> = ::phf::Map {
     key: 16287231350648472473,
     pilots: &[
         7, 1, 72, 7, 24, 2, 4, 14, 42, 51, 35, 0, 78, 191, 44, 178, 1, 17, 17, 22, 10, 0, 25, 69,

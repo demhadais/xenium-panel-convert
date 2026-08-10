@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use chemistry::{EnsemblId, GeneName, UnvalidatedEnsemblId};
-use csv::StringRecord;
-pub use error::{Error, ErrorInner};
-pub use target::{Priority as TargetPriority, ValidGene, ValidTarget};
+pub use error::Error;
+pub(crate) use error::ErrorInner;
+pub(crate) use target::{Priority as TargetPriority, ValidGene, ValidTarget};
 pub use xenium_panel_designer::XeniumPanelDesignerGeneList;
 
 use crate::gene_list::{
@@ -38,7 +38,6 @@ pub fn parse_target_list(
     // We initialize the list of errors from the field-renaming, but it doesn't
     // prevent us from continuing the parsing
     let (fieldnames, error) = rename_fields(headers, field_aliases);
-    let fieldnames = Some(&fieldnames);
     let mut errors = error.map(|e| vec![e]).unwrap_or_default();
 
     let mut valid_targets = Vec::with_capacity(N_GENES);
@@ -51,7 +50,7 @@ pub fn parse_target_list(
 
         let line_number = record.position().map(csv::Position::line);
 
-        let submitted_target = parse_unvalidated_target_from_record(record, fieldnames);
+        let submitted_target = UnvalidatedTarget::from_record(record, &fieldnames);
         let validation_result = submitted_target.validate(ensembl_id_to_gene);
 
         push_validation_result(
@@ -68,18 +67,9 @@ pub fn parse_target_list(
         return Err(errors);
     }
 
-    Ok(XeniumPanelDesignerGeneList::from_valid_target_list(
+    Ok(XeniumPanelDesignerGeneList::from_valid_targets(
         valid_targets,
     ))
-}
-
-fn parse_unvalidated_target_from_record(
-    record: &StringRecord,
-    fieldnames: Option<&StringRecord>,
-) -> UnvalidatedTarget {
-    // Unwrapping is fine because extra fields won't cause a failure, nor will
-    // missing fields
-    record.deserialize(fieldnames).unwrap()
 }
 
 fn push_validation_result(
@@ -131,8 +121,8 @@ mod tests {
 
         // Two rows with the same Ensembl ID/gene-name pair but differing other fields
         let gene_list = format!(
-            "ensembl_id,gene_name,group,is_backup,must_have\n{ensembl_id_str},TP53,group0,false,\
-             true\n{ensembl_id_str},TP53,group1,true,false"
+            "ensembl_id,gene_name,group,priority\n{ensembl_id_str},TP53,group0,\
+             must_have\n{ensembl_id_str},TP53,group1,backup"
         );
 
         let errors = parse_target_list(
@@ -148,7 +138,7 @@ mod tests {
 
     #[test]
     fn error_reports_correct_file_line_number() {
-        let gene_list = "ensembl_id,gene_name,group,is_backup,must_have\nid,gene,0,false,false";
+        let gene_list = "ensembl_id,gene_name,group,priority\nid,gene,0,must_have";
 
         let errors = parse_target_list(
             gene_list,

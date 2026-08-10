@@ -4,7 +4,7 @@ use serde::Serialize;
 
 use crate::reference_dataset::h5::{read_1d_string_dataset, to_ascii};
 
-pub fn read_features_from_h5ad(
+pub(crate) fn read_features_from_h5ad(
     file: &File,
     ensembl_id_col: &str,
     gene_name_col: &str,
@@ -29,39 +29,41 @@ pub fn read_features_from_h5ad(
     })
 }
 
+// Placeholder for the planned wrong-reference-genome check (see docs/GOALS.md)
+#[allow(dead_code)]
 fn check_genes_are_from_correct_genome() {}
 
 // Human Ensembl IDs are 15 characters while mouse Ensembl IDs are 18
-pub type EnsemblId = FixedAscii<18>;
+pub(crate) type EnsemblId = FixedAscii<18>;
 
-pub type EnsemblIds = Array1<EnsemblId>;
+type EnsemblIds = Array1<EnsemblId>;
 
 // No gene name is likely to exceed 32 characters
-pub type GeneName = FixedAscii<32>;
+pub(crate) type GeneName = FixedAscii<32>;
 
-pub type GeneNames = Array1<GeneName>;
+type GeneNames = Array1<GeneName>;
 
-pub type FeatureType = FixedAscii<32>;
+type FeatureType = FixedAscii<32>;
 
-pub type FeatureTypes = Array1<FeatureType>;
+type FeatureTypes = Array1<FeatureType>;
 
 #[derive(Debug, PartialEq)]
-pub struct Features {
+pub(crate) struct Features {
     id: EnsemblIds,
     name: GeneNames,
     feature_type: FeatureTypes,
 }
 
 impl Features {
-    pub fn id(&self) -> &EnsemblIds {
+    pub(crate) fn id(&self) -> &EnsemblIds {
         &self.id
     }
 
-    pub fn name(&self) -> &GeneNames {
+    pub(crate) fn name(&self) -> &GeneNames {
         &self.name
     }
 
-    pub fn feature_type(&self) -> &FeatureTypes {
+    pub(crate) fn feature_type(&self) -> &FeatureTypes {
         &self.feature_type
     }
 }

@@ -14,7 +14,7 @@ pub struct Error {
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "snake_case", tag = "type")]
-pub enum ErrorInner {
+pub(crate) enum ErrorInner {
     MalformedCsv {
         reason: String,
     },
@@ -38,7 +38,6 @@ pub enum ErrorInner {
     EnsemblIdGeneNameMismatch {
         correct_gene_name: GeneName,
     },
-    BackupAndMustHave,
     GeneNotFound,
     DuplicateGene,
 }

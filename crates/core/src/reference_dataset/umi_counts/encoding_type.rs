@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 #[derive(Clone, Copy, Debug, strum::Display)]
-pub enum EncodingType {
+pub(crate) enum EncodingType {
     #[strum(transparent)]
     Dense(DenseEncodingType),
     #[strum(transparent)]
@@ -9,7 +9,7 @@ pub enum EncodingType {
 }
 
 impl EncodingType {
-    pub const VARIANTS: &'static [&'static str] = &["array", "csr_matrix", "csc_matrix"];
+    pub(crate) const VARIANTS: &'static [&'static str] = &["array", "csr_matrix", "csc_matrix"];
 }
 
 // We don't actually need a good error here because the caller decides what to
@@ -29,13 +29,13 @@ impl FromStr for EncodingType {
 
 #[derive(Clone, Copy, Debug, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "snake_case")]
-pub enum DenseEncodingType {
+pub(crate) enum DenseEncodingType {
     Array,
 }
 
 #[derive(Clone, Copy, Debug, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "snake_case")]
-pub enum SparseEncodingType {
+pub(crate) enum SparseEncodingType {
     CsrMatrix,
     CscMatrix,
 }

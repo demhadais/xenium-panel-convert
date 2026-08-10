@@ -37,7 +37,7 @@ pub fn parse_target_list_from_file(
             }
         })?;
 
-    let field_aliases = read_field_aliases(field_alias_file_contents.as_deref(), field_aliases)
+    let field_aliases = combine_field_aliases(field_alias_file_contents.as_deref(), field_aliases)
         .with_context(|| {
             if let Some(path) = field_alias_path {
                 format!("failed to read field aliases from {path}")
@@ -89,7 +89,7 @@ fn parse_field_aliases(s: &str) -> anyhow::Result<(String, String)> {
         .ok_or_else(|| anyhow!("field aliases must be specified as '<ALIAS>=<FIELD>'"))
 }
 
-fn read_field_aliases<'a>(
+fn combine_field_aliases<'a>(
     field_alias_file_contents: Option<&'a [u8]>,
     field_aliases: &'a [(String, String)],
 ) -> anyhow::Result<HashMap<&'a str, &'a str>> {
@@ -126,7 +126,7 @@ pub enum Chemistry {
 
 #[cfg(test)]
 mod tests {
-    use crate::targets::read_field_aliases;
+    use crate::targets::combine_field_aliases;
 
     #[test]
     fn field_aliases_are_combined_correctly() {
@@ -138,7 +138,7 @@ mod tests {
             .collect();
 
         let field_aliases =
-            read_field_aliases(Some(br#"alias1 = "field2""#), &field_aliases).unwrap();
+            combine_field_aliases(Some(br#"alias1 = "field2""#), &field_aliases).unwrap();
 
         assert_eq!(
             field_aliases,

@@ -10,7 +10,7 @@ use crate::gene_list::{
 pub struct XeniumPanelDesignerGeneList(Vec<XeniumPanelDesignerTarget>);
 
 impl XeniumPanelDesignerGeneList {
-    pub fn from_valid_target_list(mut valid_targets: Vec<ValidTarget>) -> Self {
+    pub(super) fn from_valid_targets(mut valid_targets: Vec<ValidTarget>) -> Self {
         valid_targets.sort_by_key(|target| target.priority);
 
         Self(

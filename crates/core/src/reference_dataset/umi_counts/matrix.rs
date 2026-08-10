@@ -18,10 +18,10 @@ type UnvalidatedCscMatrix = CscMatrix<f32>;
 type ValidatedCscMatrix = CscMatrix<i32>;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct RawCscUmiCounts(ValidatedCscMatrix);
+pub(crate) struct RawCscUmiCounts(ValidatedCscMatrix);
 
 impl RawCscUmiCounts {
-    pub fn from_sparse_matrix(
+    pub(crate) fn from_sparse_matrix(
         shape: (usize, usize),
         indptr: Vec<i64>,
         indices: Vec<i64>,
@@ -39,12 +39,12 @@ impl RawCscUmiCounts {
             .and_then(Self::from_csc_matrix)
     }
 
-    fn from_csc_matrix(mtx: CscMatrix<f32>) -> Result<Self, Error> {
-        let mtx = convert_to_i32_mtx(mtx)?;
+    fn from_csc_matrix(mtx: UnvalidatedCscMatrix) -> Result<Self, Error> {
+        let mtx = validate_counts(mtx)?;
         Ok(Self(mtx))
     }
 
-    pub fn from_dense_matrix(
+    pub(crate) fn from_dense_matrix(
         counts: &Array2<f32>,
         encoding_type: DenseEncodingType,
     ) -> Result<Self, Error> {
@@ -55,27 +55,27 @@ impl RawCscUmiCounts {
         }
     }
 
-    pub fn data(&self) -> &[i32] {
-        self.0.get().data()
+    pub(crate) fn data(&self) -> &[i32] {
+        self.0.as_matrix().data()
     }
 
-    pub fn indices(&self) -> &[i64] {
-        self.0.get().indices()
+    pub(crate) fn indices(&self) -> &[i64] {
+        self.0.as_matrix().indices()
     }
 
-    pub fn indptr(&self) -> Cow<'_, [i64]> {
-        self.0.get().proper_indptr()
+    pub(crate) fn indptr(&self) -> Cow<'_, [i64]> {
+        self.0.as_matrix().proper_indptr()
     }
 
-    pub fn shape(&self) -> [i32; 2] {
-        let (nrows, ncols) = self.0.get().shape();
+    pub(crate) fn shape(&self) -> [i32; 2] {
+        let (nrows, ncols) = self.0.as_matrix().shape();
 
         [nrows as i32, ncols as i32]
     }
 }
 
-fn convert_to_i32_mtx(mtx: UnvalidatedCscMatrix) -> Result<ValidatedCscMatrix, Error> {
-    let shape = mtx.get().shape();
+fn validate_counts(mtx: UnvalidatedCscMatrix) -> Result<ValidatedCscMatrix, Error> {
+    let shape = mtx.as_matrix().shape();
 
     let (indptr, indices, f32_data) = mtx.into_inner().into_raw_storage();
 

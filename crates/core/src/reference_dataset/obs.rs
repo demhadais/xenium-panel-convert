@@ -8,7 +8,7 @@ use crate::reference_dataset::{
 
 // Read these into String because we will write them to a CSV, so we need serde
 // support
-pub fn read_cell_annotations_from_h5ad(
+pub(crate) fn read_cell_annotations_from_h5ad(
     file: &File,
     annotations_col: &str,
 ) -> Result<CellAnnotations, Error> {
@@ -21,7 +21,7 @@ pub fn read_cell_annotations_from_h5ad(
 // contain sample names, which can be arbitrarily long. As such, we allow a
 // conservative 64 bytes per barcode (18 bytes for the barcode itself and 46 for
 // the sample name). This is easy to adjust should we find it to be too small
-pub fn read_cell_barcodes_from_h5ad(file: &File, barcodes_col: &str) -> Result<Barcodes, Error> {
+pub(crate) fn read_cell_barcodes_from_h5ad(file: &File, barcodes_col: &str) -> Result<Barcodes, Error> {
     let barcodes = h5::read_1d_string_dataset(file, &format!("obs/{barcodes_col}"))?;
 
     Ok(barcodes.mapv_into_any(|b| to_ascii(&b)))

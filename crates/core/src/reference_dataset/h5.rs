@@ -1,14 +1,16 @@
 use std::str::FromStr;
 
 use hdf5_metno::{
-    Container, File, H5Type,
+    Container, File, Group, H5Type,
     types::{FixedAscii, VarLenUnicode},
 };
-use ndarray::Array1;
+use ndarray::{Array1, ArrayView, Dimension};
 use serde::Serialize;
 use strum::VariantNames;
 
-pub fn read_container(file: &File, path: &str) -> Result<Container, ReadFieldError> {
+use crate::reference_dataset::Error;
+
+pub(crate) fn read_container(file: &File, path: &str) -> Result<Container, ReadFieldError> {
     let container = match file.group(path) {
         Ok(g) => g.as_container().unwrap(),
         Err(_) => file
@@ -23,7 +25,7 @@ pub fn read_container(file: &File, path: &str) -> Result<Container, ReadFieldErr
     Ok(container)
 }
 
-pub fn read_attribute<T: H5Type>(container: &Container, path: &str) -> Result<T, ReadFieldError> {
+pub(crate) fn read_attribute<T: H5Type>(container: &Container, path: &str) -> Result<T, ReadFieldError> {
     container
         .attr(path)
         .and_then(|a| a.read_scalar())
@@ -33,7 +35,7 @@ pub fn read_attribute<T: H5Type>(container: &Container, path: &str) -> Result<T,
         })
 }
 
-pub fn read_1d_dataset<T: H5Type>(file: &File, path: &str) -> Result<Array1<T>, ReadFieldError> {
+pub(crate) fn read_1d_dataset<T: H5Type>(file: &File, path: &str) -> Result<Array1<T>, ReadFieldError> {
     file.dataset(path)
         .and_then(|ds| ds.read_1d())
         .map_err(|_| ReadFieldError::DataTypeOrMissing {
@@ -42,7 +44,7 @@ pub fn read_1d_dataset<T: H5Type>(file: &File, path: &str) -> Result<Array1<T>, 
         })
 }
 
-pub fn read_dataset_raw<T: H5Type>(file: &File, path: &str) -> Result<Vec<T>, ReadFieldError> {
+pub(crate) fn read_dataset_raw<T: H5Type>(file: &File, path: &str) -> Result<Vec<T>, ReadFieldError> {
     file.dataset(path)
         .and_then(|ds| ds.read_raw())
         .map_err(|_| ReadFieldError::DataTypeOrMissing {
@@ -51,7 +53,7 @@ pub fn read_dataset_raw<T: H5Type>(file: &File, path: &str) -> Result<Vec<T>, Re
         })
 }
 
-pub fn read_1d_string_dataset(
+pub(crate) fn read_1d_string_dataset(
     file: &File,
     path: &str,
 ) -> Result<Array1<VarLenUnicode>, ReadFieldError> {
@@ -119,13 +121,35 @@ fn read_nullable_string_array(
     read_string_array(file, &format!("{path}/values"))
 }
 
-pub fn to_ascii<const N: usize>(s: &VarLenUnicode) -> FixedAscii<N> {
+pub(crate) fn to_ascii<const N: usize>(s: &VarLenUnicode) -> FixedAscii<N> {
     FixedAscii::from_ascii(&s).expect("all strings are ASCII in this context")
+}
+
+pub(crate) fn write_dataset_to_h5_group<'d, A, T, D>(
+    group: &Group,
+    path: &str,
+    data: A,
+) -> Result<(), Error>
+where
+    A: Into<ArrayView<'d, T, D>>,
+    T: H5Type,
+    D: Dimension,
+{
+    group
+        .new_dataset_builder()
+        .with_data(data)
+        .create(path)
+        .map_err(|e| Error::WriteH5Object {
+            path: path.to_owned(),
+            reason: e.to_string(),
+        })?;
+
+    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, strum::EnumString, strum::VariantNames)]
 #[strum(serialize_all = "kebab-case")]
-pub enum StringEncodingType {
+enum StringEncodingType {
     Categorical,
     StringArray,
     NullableStringArray,
@@ -156,5 +180,4 @@ pub enum FieldType {
     Attribute,
     Container,
     Dataset,
-    Group,
 }
