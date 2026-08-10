@@ -1,27 +1,28 @@
 use std::collections::{HashMap, HashSet};
 
-use chemistry::{EnsemblId, GeneName, UnvalidatedEnsemblId, UnvalidatedGeneName};
+use chemistry::{EnsemblId, GeneName, UnvalidatedEnsemblId};
 use csv::StringRecord;
 pub use error::{Error, ErrorInner};
-use serde::{Deserialize, Serialize};
-pub use target::{IsBackup, MustHave, ValidGene, ValidTarget};
+pub use target::{Priority as TargetPriority, ValidGene, ValidTarget};
+pub use xenium_panel_designer::XeniumPanelDesignerGeneList;
 
 use crate::gene_list::{
     csv_util::{extract_record, read_csv_trimmed, rename_fields},
-    target::{UnvalidatedGene, UnvalidatedTarget, validate_target},
+    target::UnvalidatedTarget,
 };
 
 pub mod chemistry;
 mod csv_util;
 mod error;
 mod target;
+mod xenium_panel_designer;
 
 #[allow(clippy::missing_errors_doc)]
 pub fn parse_target_list(
     target_list: &str,
     field_aliases: &HashMap<&str, &str>,
     ensembl_id_to_gene: impl Fn(&UnvalidatedEnsemblId) -> Option<(EnsemblId, GeneName)> + Copy,
-) -> Result<Vec<ValidTarget>, Vec<Error>> {
+) -> Result<XeniumPanelDesignerGeneList, Vec<Error>> {
     const N_GENES: usize = 500;
 
     let mut reader = read_csv_trimmed(target_list);
@@ -51,7 +52,7 @@ pub fn parse_target_list(
         let line_number = record.position().map(csv::Position::line);
 
         let submitted_target = parse_unvalidated_target_from_record(record, fieldnames);
-        let validation_result = validate_target(&submitted_target, ensembl_id_to_gene);
+        let validation_result = submitted_target.validate(ensembl_id_to_gene);
 
         push_validation_result(
             line_number,
@@ -64,10 +65,16 @@ pub fn parse_target_list(
     }
 
     if errors.is_empty() {
-        Ok(valid_targets)
-    } else {
-        Err(errors)
+        return Err(errors);
     }
+
+    Ok(XeniumPanelDesignerGeneList::from_valid_target_list(
+        valid_targets,
+    ))
+}
+
+pub struct XeniumPanelDesignerGeneRecord {
+    gene: ValidGene,
 }
 
 fn parse_unvalidated_target_from_record(

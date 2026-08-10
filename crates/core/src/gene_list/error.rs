@@ -21,7 +21,7 @@ pub enum ErrorInner {
     MissingField {
         fieldname: &'static str,
     },
-    ParseBool {
+    ParsePriority {
         value: String,
     },
     VersionedOrLowercaseEnsemblId {

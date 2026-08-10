@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow};
 use camino::Utf8PathBuf;
 use serde::Serialize;
 use xenium_panel_validate_core::gene_list::{
-    self, IsBackup, MustHave, ValidGene, ValidTarget,
+    self, ValidGene, ValidTarget, XeniumPanelDesignerGeneList,
     chemistry::{
         xenium_prime_human_ensembl_id_to_gene, xenium_prime_mouse_ensembl_id_to_gene,
         xenium_v1_human_ensembl_id_to_gene, xenium_v1_mouse_ensembl_id_to_gene,
@@ -21,7 +21,7 @@ pub fn parse_target_list_from_file(
     }: &CommandlineArgs,
     species: Species,
     chemistry: Chemistry,
-) -> anyhow::Result<Result<Vec<XeniumPanelDesignerGeneRecord>, Vec<gene_list::Error>>> {
+) -> anyhow::Result<Result<XeniumPanelDesignerGeneList, Vec<gene_list::Error>>> {
     let target_list = fs::read_to_string(target_path)
         .with_context(|| format!("failed to read target-list from {target_path}"))?;
 
@@ -71,11 +71,6 @@ pub fn parse_target_list_from_file(
         ),
     };
 
-    let result = match result {
-        Ok(mut targets) => Ok(valid_targets_to_panel_designer_records(&mut targets)),
-        Err(e) => Err(e),
-    };
-
     Ok(result)
 }
 
@@ -86,63 +81,6 @@ pub struct CommandlineArgs {
     field_alias_path: Option<Utf8PathBuf>,
     #[clap(long, short = 'a', value_parser = parse_field_aliases)]
     field_aliases: Vec<(String, String)>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct XeniumPanelDesignerGeneRecord {
-    #[serde(flatten)]
-    gene: ValidGene,
-    probe_sets: Option<u16>,
-    forced: Option<Forced>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-enum Forced {
-    Forced,
-}
-
-fn valid_targets_to_panel_designer_records(
-    targets: &mut [ValidTarget],
-) -> Vec<XeniumPanelDesignerGeneRecord> {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-    enum Priority {
-        MustHave = 0,
-        Desired = 1,
-        Backup = 2,
-    }
-
-    fn to_priority(
-        ValidTarget {
-            gene: _,
-            group: _,
-            is_backup,
-            must_have,
-        }: &ValidTarget,
-    ) -> Priority {
-        if must_have.0 {
-            Priority::MustHave
-        } else if !is_backup.0 {
-            Priority::Desired
-        } else {
-            Priority::Backup
-        }
-    }
-
-    let to_forced = |priority| match priority {
-        Priority::MustHave => Some(Forced::Forced),
-        Priority::Desired | Priority::Backup => None,
-    };
-
-    let to_panel_designer_record = |valid_target| XeniumPanelDesignerGeneRecord {
-        forced: to_forced(to_priority(valid_target)),
-        gene: valid_target.gene,
-        probe_sets: None,
-    };
-
-    targets.sort_by_key(to_priority);
-
-    targets.iter().map(to_panel_designer_record).collect()
 }
 
 fn parse_field_aliases(s: &str) -> anyhow::Result<(String, String)> {
