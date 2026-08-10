@@ -219,10 +219,9 @@ mod tests {
     use std::path::Path;
 
     use anyhow::Context;
-    use hdf5_metno::types::{FixedAscii, VarLenUnicode};
+    use hdf5_metno::types::FixedAscii;
 
     use crate::reference_dataset::{
-        Barcode,
         h5::read_1d_dataset,
         validate_reference_dataset,
         var::{EnsemblId, GeneName},

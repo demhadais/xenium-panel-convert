@@ -64,17 +64,13 @@ pub fn parse_target_list(
         );
     }
 
-    if errors.is_empty() {
+    if !errors.is_empty() {
         return Err(errors);
     }
 
     Ok(XeniumPanelDesignerGeneList::from_valid_target_list(
         valid_targets,
     ))
-}
-
-pub struct XeniumPanelDesignerGeneRecord {
-    gene: ValidGene,
 }
 
 fn parse_unvalidated_target_from_record(
@@ -124,12 +120,8 @@ mod tests {
 
     use crate::gene_list::{
         ErrorInner,
-        chemistry::{
-            UnvalidatedEnsemblId, UnvalidatedGeneName, tests::tp53_ensembl_id,
-            xenium_v1_human_ensembl_id_to_gene,
-        },
-        parse_target_list, rename_fields,
-        target::{UnvalidatedGene, UnvalidatedTarget},
+        chemistry::{tests::tp53_ensembl_id, xenium_v1_human_ensembl_id_to_gene},
+        parse_target_list,
     };
 
     #[test]

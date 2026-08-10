@@ -2,9 +2,9 @@ use std::{collections::HashMap, fs};
 
 use anyhow::{Context, anyhow};
 use camino::Utf8PathBuf;
-use serde::Serialize;
+
 use xenium_panel_validate_core::gene_list::{
-    self, ValidGene, ValidTarget, XeniumPanelDesignerGeneList,
+    self, XeniumPanelDesignerGeneList,
     chemistry::{
         xenium_prime_human_ensembl_id_to_gene, xenium_prime_mouse_ensembl_id_to_gene,
         xenium_v1_human_ensembl_id_to_gene, xenium_v1_mouse_ensembl_id_to_gene,

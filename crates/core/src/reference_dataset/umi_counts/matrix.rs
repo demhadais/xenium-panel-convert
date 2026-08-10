@@ -138,7 +138,7 @@ mod tests {
     use crate::reference_dataset::umi_counts::{
         Error, RawCscUmiCounts,
         encoding_type::{DenseEncodingType, SparseEncodingType},
-        matrix::{Matrix, csc::CscMatrix},
+        matrix::Matrix,
     };
 
     fn counts() -> Array2<f32> {
