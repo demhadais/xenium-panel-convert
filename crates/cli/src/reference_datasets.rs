@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use anyhow::{anyhow, bail, ensure};
 use camino::{Utf8Path, Utf8PathBuf};
 use serde::Serialize;
+use serde_json::error::Category::Data;
 use xenium_panel_validate_core::{
     Species,
     reference_dataset::{
@@ -15,21 +16,19 @@ use xenium_panel_validate_core::{
 use crate::error::write_error_report;
 
 pub fn convert_reference_datasets(
-    CliOptions {
+    ReferenceDatasetCliOptions {
         reference: reference_datasets,
-    }: &CliOptions,
+    }: &ReferenceDatasetCliOptions,
     species: Species,
     output_dir: &Utf8Path,
 ) -> anyhow::Result<()> {
-    let mut parsed_datasets = Vec::with_capacity(reference_datasets.len());
-    let mut errors = Vec::with_capacity(reference_datasets.len());
-
     for ReferenceDatasetSpecification {
         path,
         cell_barcode_col,
         cell_annotation_col,
         ensembl_id_col,
         gene_name_col,
+        rename: _,
     } in reference_datasets
     {
         match read_reference_dataset(
@@ -41,38 +40,29 @@ pub fn convert_reference_datasets(
             species,
         ) {
             Ok(ds) => {
-                parsed_datasets.push(ds);
+                todo!()
             }
-            Err(errs) => {
-                errors.push(DatasetErrors {
-                    path: path.to_owned(),
-                    errors: errs,
-                });
+            Err(errors) => {
+                write_error_report(
+                    &DatasetErrors {
+                        path: path.clone(),
+                        errors,
+                    },
+                    &output_dir.join(
+                        path.file_name()
+                            .map(|s| format!("{s}-errors.json"))
+                            .unwrap(),
+                    ),
+                )?;
             }
         }
-    }
-
-    for _ds in &parsed_datasets {
-        todo!()
-    }
-
-    for error_set in &errors {
-        write_error_report(
-            error_set,
-            &output_dir.join(
-                error_set
-                    .path
-                    .file_name()
-                    .expect("a filename shouldn't terminate in '..'"),
-            ),
-        )?;
     }
 
     Ok(())
 }
 
 #[derive(Debug, Serialize)]
-pub struct DatasetErrors {
+struct DatasetErrors {
     path: Utf8PathBuf,
     errors: Vec<reference_dataset::Error>,
 }
@@ -84,14 +74,15 @@ struct ReferenceDatasetSpecification {
     cell_annotation_col: CellAnnotationCol,
     ensembl_id_col: EnsemblIdCol,
     gene_name_col: GeneNameCol,
+    rename: Option<Utf8PathBuf>,
 }
 
 impl ReferenceDatasetSpecification {
     fn parse_commandline(s: &str) -> anyhow::Result<Self> {
         const EXAMPLE: &str = "xp-prep --reference \
-                               'path=matrix.h5ad,barcode_col=barcodes,annotation_col=annotations,\
+                               path=matrix.h5ad,barcode_col=barcodes,annotation_col=annotations,\
                                ensembl_id_col=gene_ids\nxp-prep --r \
-                               'matrix.h5ad,b=barcodes,a=annotations,e=gene_ids";
+                               matrix.h5ad,b=barcodes,a=annotations,e=gene_ids";
 
         fn get_spec_value_default<'a, T: Default + From<&'a str>>(
             spec: &'a HashMap<&str, &str>,
@@ -104,20 +95,18 @@ impl ReferenceDatasetSpecification {
             spec: &'a HashMap<&str, &str>,
             key: &str,
         ) -> anyhow::Result<T> {
-            spec.get(key).map(|v| T::from(*v)).ok_or_else(|| {
-                anyhow!(
-                    "{key} not found - specify key-value pairs as one of the following (mixing \
-                     allowed):\n{EXAMPLE}"
-                )
-            })
+            spec.get(key)
+                .map(|v| T::from(*v))
+                .ok_or_else(|| anyhow!("key '{key}' is required"))
         }
 
         let key_aliases: HashMap<_, _> = [
             ("p", "path"),
-            ("b", "barcode_col"),
-            ("a", "annotation_col"),
-            ("e", "ensembl_id_col"),
-            ("g", "gene_name_col"),
+            ("b", "barcode-col"),
+            ("a", "annotation-col"),
+            ("e", "ensembl-id-col"),
+            ("g", "gene-name-col"),
+            ("r", "rename"),
         ]
         .clone()
         .into_iter()
@@ -136,7 +125,7 @@ impl ReferenceDatasetSpecification {
                 (0, None) => ("path", kv_pair),
                 (_, None) => {
                     bail!(
-                        "reference dataset specification must be provided as one of the following \
+                        "reference dataset specification must be provided like one of the following \
                          (mixing allowed):\n{EXAMPLE}"
                     );
                 }
@@ -144,14 +133,14 @@ impl ReferenceDatasetSpecification {
 
             ensure!(
                 allowed_keys.contains(key),
-                "key {key} not recognized in reference dataset specification"
+                "key '{key}' not recognized in reference dataset specification"
             );
 
             let key = key_aliases.get(key).unwrap_or(&key);
 
             ensure!(
                 spec.insert(*key, value).is_none(),
-                "{key} may not be specified more than once"
+                "key '{key}' may not be specified more than once"
             );
         }
 
@@ -161,12 +150,13 @@ impl ReferenceDatasetSpecification {
             cell_annotation_col: get_spec_value(&spec, "annotation_col")?,
             ensembl_id_col: get_spec_value_default(&spec, "ensembl_id_col"),
             gene_name_col: get_spec_value_default(&spec, "gene_name_col"),
+            rename: get_spec_value(&spec, "rename").ok(),
         })
     }
 }
 
 #[derive(Clone, Debug, clap::Args)]
-pub struct CliOptions {
-    #[clap(long, value_parser = ReferenceDatasetSpecification::parse_commandline, help = "Reference dataset specification.")]
+pub struct ReferenceDatasetCliOptions {
+    #[clap(value_parser = ReferenceDatasetSpecification::parse_commandline)]
     reference: Vec<ReferenceDatasetSpecification>,
 }

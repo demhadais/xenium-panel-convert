@@ -17,17 +17,17 @@ use xenium_panel_validate_core::{
 use crate::error::write_error_report;
 
 pub fn convert_target_list(
-    CliOptions {
-        target_path,
+    TargetListCliOptions {
+        targets_path,
         field_alias_path,
         field_aliases,
-    }: &CliOptions,
+        chemistry,
+    }: &TargetListCliOptions,
     species: Species,
-    chemistry: Chemistry,
     output_dir: &Utf8Path,
 ) -> anyhow::Result<()> {
-    let target_list = fs::read_to_string(target_path)
-        .with_context(|| format!("failed to read target-list from {target_path}"))?;
+    let target_list = fs::read_to_string(targets_path)
+        .with_context(|| format!("failed to read target-list from {targets_path}"))?;
 
     let field_alias_file_contents = field_alias_path
         .as_ref()
@@ -81,7 +81,7 @@ pub fn convert_target_list(
                 &output_dir.join("xenium-panel-designer-targets.csv"),
             )
         }
-        Err(e) => write_error_report(&e, &output_dir.join("target-list-errors.json")),
+        Err(e) => write_error_report(&e, &output_dir.join("target-list.errors.json")),
     }
 }
 
@@ -97,12 +97,15 @@ fn write_targets_for_xenium_panel_designer(
 }
 
 #[derive(Debug, Clone, clap::Args)]
-pub struct CliOptions {
-    target_path: Utf8PathBuf,
+pub struct TargetListCliOptions {
+    #[clap(long, short)]
+    targets_path: Utf8PathBuf,
     #[clap(long, short = 'p')]
     field_alias_path: Option<Utf8PathBuf>,
     #[clap(long, short = 'a', value_parser = parse_field_aliases)]
     field_aliases: Vec<(String, String)>,
+    #[clap(long, short)]
+    chemistry: Chemistry,
 }
 
 fn parse_field_aliases(s: &str) -> anyhow::Result<(String, String)> {

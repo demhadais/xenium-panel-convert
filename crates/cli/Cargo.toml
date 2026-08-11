@@ -9,7 +9,7 @@ repository.workspace = true
 readme.workspace = true
 
 [[bin]]
-name = "xpv"
+name = "xp-convert"
 path = "src/main.rs"
 
 [dependencies]
