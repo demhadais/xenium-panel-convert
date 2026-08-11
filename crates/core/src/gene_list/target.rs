@@ -39,7 +39,7 @@ impl UnvalidatedTarget {
             }
         };
 
-        let valid_gene = match gene.validate(ensembl_id_to_gene) {
+        let valid_gene = match ValidGene::from_unvalidated(gene, ensembl_id_to_gene) {
             Ok(vg) => Some(vg),
             Err(err) => {
                 errors.push(err);
@@ -54,52 +54,6 @@ impl UnvalidatedTarget {
                 priority,
             }),
             _ => Err(errors),
-        }
-    }
-}
-
-impl UnvalidatedGene {
-    fn validate(
-        &self,
-        ensembl_id_to_gene: impl Fn(&UnvalidatedEnsemblId) -> Option<(EnsemblId, GeneName)>,
-    ) -> Result<ValidGene, ErrorInner> {
-        let Self {
-            ensembl_id,
-            gene_name: submitted_gene_name,
-        } = self;
-
-        let Some(ensembl_id) = ensembl_id else {
-            return Err(ErrorInner::NoEnsemblId);
-        };
-
-        let map_valid_gene = |(ensembl_id, gene_name)| ValidGene {
-            ensembl_id,
-            gene_name,
-        };
-
-        if !ensembl_id.is_versionless_and_uppercase() {
-            let correct_gene =
-                ensembl_id_to_gene(&ensembl_id.to_versionless_uppercase()).map(map_valid_gene);
-
-            return Err(ErrorInner::VersionedOrLowercaseEnsemblId { correct_gene });
-        }
-
-        let valid_gene = ensembl_id_to_gene(ensembl_id)
-            .map(map_valid_gene)
-            .ok_or(ErrorInner::GeneNotFound)?;
-
-        let Some(submitted_gene_name) = submitted_gene_name else {
-            return Err(ErrorInner::NoGeneName {
-                probable_gene_name: valid_gene.gene_name,
-            });
-        };
-
-        if *submitted_gene_name == valid_gene.gene_name {
-            Ok(valid_gene)
-        } else {
-            Err(ErrorInner::EnsemblIdGeneNameMismatch {
-                correct_gene_name: valid_gene.gene_name,
-            })
         }
     }
 }
@@ -139,6 +93,50 @@ pub(crate) struct ValidGene {
     pub(crate) gene_name: GeneName,
 }
 
+impl ValidGene {
+    fn from_unvalidated(
+        UnvalidatedGene {
+            ensembl_id,
+            gene_name: submitted_gene_name,
+        }: &UnvalidatedGene,
+        ensembl_id_to_gene: impl Fn(&UnvalidatedEnsemblId) -> Option<(EnsemblId, GeneName)>,
+    ) -> Result<Self, ErrorInner> {
+        let Some(ensembl_id) = ensembl_id else {
+            return Err(ErrorInner::NoEnsemblId);
+        };
+
+        let map_valid_gene = |(ensembl_id, gene_name)| Self {
+            ensembl_id,
+            gene_name,
+        };
+
+        if !ensembl_id.is_versionless_and_uppercase() {
+            let correct_gene =
+                ensembl_id_to_gene(&ensembl_id.to_versionless_uppercase()).map(map_valid_gene);
+
+            return Err(ErrorInner::VersionedOrLowercaseEnsemblId { correct_gene });
+        }
+
+        let valid_gene = ensembl_id_to_gene(ensembl_id)
+            .map(map_valid_gene)
+            .ok_or(ErrorInner::GeneNotFound)?;
+
+        let Some(submitted_gene_name) = submitted_gene_name else {
+            return Err(ErrorInner::NoGeneName {
+                probable_gene_name: valid_gene.gene_name,
+            });
+        };
+
+        if *submitted_gene_name == valid_gene.gene_name {
+            Ok(valid_gene)
+        } else {
+            Err(ErrorInner::EnsemblIdGeneNameMismatch {
+                correct_gene_name: valid_gene.gene_name,
+            })
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub(crate) struct UnvalidatedTarget {
     #[serde(flatten)]
@@ -167,11 +165,13 @@ mod tests {
 
     #[test]
     fn valid_gene() {
-        let _ = UnvalidatedGene {
-            ensembl_id: Some(tp53_ensembl_id()),
-            gene_name: Some(UnvalidatedGeneName::new("TP53".to_owned())),
-        }
-        .validate(xenium_v1_human_ensembl_id_to_gene)
+        ValidGene::from_unvalidated(
+            &UnvalidatedGene {
+                ensembl_id: Some(tp53_ensembl_id()),
+                gene_name: Some(UnvalidatedGeneName::new("TP53".to_owned())),
+            },
+            xenium_v1_human_ensembl_id_to_gene,
+        )
         .unwrap();
     }
 
@@ -202,11 +202,13 @@ mod tests {
         let ensembl_id = tp53_ensembl_id();
         let gene_name = UnvalidatedGeneName::new(String::new());
 
-        let err = UnvalidatedGene {
-            ensembl_id: Some(ensembl_id.clone()),
-            gene_name: Some(gene_name.clone()),
-        }
-        .validate(xenium_v1_human_ensembl_id_to_gene)
+        let err = ValidGene::from_unvalidated(
+            &UnvalidatedGene {
+                ensembl_id: Some(ensembl_id.clone()),
+                gene_name: Some(gene_name.clone()),
+            },
+            xenium_v1_human_ensembl_id_to_gene,
+        )
         .unwrap_err();
 
         let (_correct_ensembl_id, correct_gene_name) =
@@ -228,11 +230,13 @@ mod tests {
         let versioned =
             UnvalidatedEnsemblId::new(format!("{}.1", ensembl_id.as_str().to_lowercase()));
 
-        let err = UnvalidatedGene {
-            ensembl_id: Some(versioned),
-            gene_name: Some(UnvalidatedGeneName::new("TP53".to_owned())),
-        }
-        .validate(xenium_v1_human_ensembl_id_to_gene)
+        let err = ValidGene::from_unvalidated(
+            &UnvalidatedGene {
+                ensembl_id: Some(versioned),
+                gene_name: Some(UnvalidatedGeneName::new("TP53".to_owned())),
+            },
+            xenium_v1_human_ensembl_id_to_gene,
+        )
         .unwrap_err();
 
         assert_eq!(
@@ -248,11 +252,13 @@ mod tests {
 
     #[test]
     fn unavailable_ensembl_id_is_gene_not_found() {
-        let err = UnvalidatedGene {
-            ensembl_id: Some(UnvalidatedEnsemblId::new("ENSG00000273816".to_owned())),
-            gene_name: Some(UnvalidatedGeneName::new(String::new())),
-        }
-        .validate(xenium_v1_human_ensembl_id_to_gene)
+        let err = ValidGene::from_unvalidated(
+            &UnvalidatedGene {
+                ensembl_id: Some(UnvalidatedEnsemblId::new("ENSG00000273816".to_owned())),
+                gene_name: Some(UnvalidatedGeneName::new(String::new())),
+            },
+            xenium_v1_human_ensembl_id_to_gene,
+        )
         .unwrap_err();
 
         assert_eq!(err, ErrorInner::GeneNotFound);
@@ -263,11 +269,13 @@ mod tests {
         let ensembl_id = tp53_ensembl_id();
         let (_, correct_gene_name) = xenium_v1_human_ensembl_id_to_gene(&ensembl_id).unwrap();
 
-        let err = UnvalidatedGene {
-            ensembl_id: Some(ensembl_id),
-            gene_name: None,
-        }
-        .validate(xenium_v1_human_ensembl_id_to_gene)
+        let err = ValidGene::from_unvalidated(
+            &UnvalidatedGene {
+                ensembl_id: Some(ensembl_id),
+                gene_name: None,
+            },
+            xenium_v1_human_ensembl_id_to_gene,
+        )
         .unwrap_err();
 
         assert_eq!(
