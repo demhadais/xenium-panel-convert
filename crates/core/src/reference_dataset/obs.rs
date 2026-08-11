@@ -3,6 +3,7 @@ use serde::Serialize;
 
 use crate::reference_dataset::{
     Barcodes, CellAnnotations,
+    columns::{CellAnnotationCol, CellBarcodeCol},
     h5_util::{self, ReadFieldError, read_1d_string_dataset, to_ascii},
 };
 
@@ -10,9 +11,9 @@ use crate::reference_dataset::{
 // support
 pub(crate) fn read_cell_annotations_from_h5ad(
     file: &File,
-    annotations_col: &str,
+    annotation_col: &CellAnnotationCol,
 ) -> Result<CellAnnotations, Error> {
-    let strings = read_1d_string_dataset(file, &format!("obs/{annotations_col}"))?;
+    let strings = read_1d_string_dataset(file, &format!("obs/{annotation_col}"))?;
 
     Ok(strings.mapv_into_any(|s| s.to_string()))
 }
@@ -23,9 +24,9 @@ pub(crate) fn read_cell_annotations_from_h5ad(
 // the sample name). This is easy to adjust should we find it to be too small
 pub(crate) fn read_cell_barcodes_from_h5ad(
     file: &File,
-    barcodes_col: &str,
+    barcode_col: &CellBarcodeCol,
 ) -> Result<Barcodes, Error> {
-    let barcodes = h5_util::read_1d_string_dataset(file, &format!("obs/{barcodes_col}"))?;
+    let barcodes = h5_util::read_1d_string_dataset(file, &format!("obs/{barcode_col}"))?;
 
     Ok(barcodes.mapv_into_any(|b| to_ascii(&b)))
 }

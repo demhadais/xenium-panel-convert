@@ -19,7 +19,7 @@ clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true
-xenium-panel-validate-core = { path = "../core", version = "0.4.0" }
+xenium-panel-validate-core = { path = "../core", version = "0.4.0", features = ["clap"] }
 
 [lints]
 workspace = true

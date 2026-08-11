@@ -4,13 +4,18 @@ use hdf5_metno::{File, types::FixedAscii};
 use ndarray::Array1;
 use serde::Serialize;
 
-use crate::reference_dataset::{
-    h5_util::write_dataset_to_h5_group,
-    obs::{read_cell_annotations_from_h5ad, read_cell_barcodes_from_h5ad},
-    umi_counts::{RawCscUmiCounts, read_umi_counts_from_h5ad},
-    var::{Features, read_features_from_h5ad},
+use crate::{
+    Species,
+    reference_dataset::{
+        columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
+        h5_util::write_dataset_to_h5_group,
+        obs::{read_cell_annotations_from_h5ad, read_cell_barcodes_from_h5ad},
+        umi_counts::{RawCscUmiCounts, read_umi_counts_from_h5ad},
+        var::{Features, read_features_from_h5ad},
+    },
 };
 
+pub mod columns;
 pub mod feature_sets;
 pub mod h5_util;
 pub mod obs;
@@ -18,12 +23,13 @@ pub mod specification;
 pub mod umi_counts;
 pub mod var;
 
-pub fn validate_reference_dataset(
+pub fn read_reference_dataset(
     path: impl AsRef<Path>,
-    cell_barcode_col: &str,
-    cell_annotation_col: &str,
-    ensembl_id_col: &str,
-    gene_name_col: &str,
+    cell_barcode_col: &CellBarcodeCol,
+    cell_annotation_col: &CellAnnotationCol,
+    ensembl_id_col: &EnsemblIdCol,
+    gene_name_col: &GeneNameCol,
+    species: Species,
 ) -> Result<ReferenceDataset, Vec<Error>> {
     let mut errors = Vec::new();
 
@@ -81,7 +87,7 @@ pub fn validate_reference_dataset(
 
 // See https://www.10xgenomics.com/support/software/cell-ranger/latest/analysis/outputs/cr-outputs-h5-matrices for format specifics
 pub fn write_reference_dataset(
-    path: impl AsRef<Path>,
+    dir: impl AsRef<Path>,
     ReferenceDataset {
         barcodes,
         counts,
@@ -89,11 +95,13 @@ pub fn write_reference_dataset(
         features,
     }: &ReferenceDataset,
 ) -> Result<(), Error> {
-    let path = path.as_ref();
+    let dir = dir.as_ref();
 
-    fs::create_dir_all(path).map_err(|e| Error::from_path_error(path, e))?;
+    if !dir.exists() {
+        fs::create_dir_all(dir).map_err(|e| Error::from_path_error(dir, e))?;
+    }
 
-    let matrix_path = path.join("matrix.h5");
+    let matrix_path = dir.join("matrix.h5");
     let file =
         File::create_excl(&matrix_path).map_err(|e| Error::from_path_error(&matrix_path, e))?;
 
@@ -113,7 +121,7 @@ pub fn write_reference_dataset(
     write_dataset_to_h5_group(&matrix_group, "features/id", &features.id)?;
     write_dataset_to_h5_group(&matrix_group, "features/name", &features.name)?;
 
-    write_annotations_csv(path.join("annotations.csv"), barcodes, cell_annotations)?;
+    write_annotations_csv(dir.join("annotations.csv"), barcodes, cell_annotations)?;
 
     Ok(())
 }
@@ -204,10 +212,13 @@ mod tests {
     use anyhow::Context;
     use hdf5_metno::types::FixedAscii;
 
-    use crate::reference_dataset::{
-        h5_util::read_1d_dataset,
-        validate_reference_dataset,
-        var::{EnsemblId, GeneName},
+    use crate::{
+        Species,
+        reference_dataset::{
+            h5_util::read_1d_dataset,
+            read_reference_dataset,
+            var::{EnsemblId, GeneName},
+        },
     };
 
     #[test]
@@ -223,15 +234,16 @@ mod tests {
 
         for path in paths {
             let filename = path.to_str().unwrap();
-            let reference_dataset = validate_reference_dataset(
+            let reference_dataset = read_reference_dataset(
                 path,
-                "barcode",
-                "annotation",
-                "ensembl_id",
-                "gene_name",
+                &"barcode".into(),
+                &"annotation".into(),
+                &"ensembl_id".into(),
+                &"gene_name".into(),
+                Species::HomoSapiens,
             )
             .map_err(|e| e[0].clone())
-            .context(format!("failed to validate {filename}"))
+            .context(format!("failed to read dataset from {filename}"))
             .unwrap();
 
             assert_eq!(
@@ -251,11 +263,17 @@ mod tests {
     fn read_real_h5ad() {
         let filename = "test-data/10k_Human_DTC_Melanoma_3p_gemx_10k_Human_DTC_Melanoma_3p_gemx_count_sample_filtered_feature_bc_matrix.h5ad";
 
-        let reconstructed_dataset =
-            validate_reference_dataset(filename, "barcode", "annotation", "gene_ids", "gene_name")
-                .map_err(|e| e[0].clone())
-                .context(format!("failed to validate {filename}"))
-                .unwrap();
+        let reconstructed_dataset = read_reference_dataset(
+            filename,
+            &"barcode".into(),
+            &"annotation".into(),
+            &"gene_ids".into(),
+            &"gene_name".into(),
+            Species::HomoSapiens,
+        )
+        .map_err(|e| e[0].clone())
+        .context(format!("failed to validate {filename}"))
+        .unwrap();
 
         // Compare it against the original data
         let original_h5 = hdf5_metno::File::open("test-data/10k_Human_DTC_Melanoma_3p_gemx_10k_Human_DTC_Melanoma_3p_gemx_count_sample_filtered_feature_bc_matrix.h5").unwrap();

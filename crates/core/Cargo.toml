@@ -18,6 +18,7 @@ ndarray.workspace = true
 sprs.workspace = true
 strum.workspace = true
 thiserror.workspace = true
+clap = { workspace = true, optional = true }
 
 [build-dependencies]
 serde.workspace = true
@@ -30,6 +31,9 @@ csv.workspace = true
 futures.workspace = true
 phf_codegen.workspace = true
 bytes.workspace = true
+
+[features]
+clap = ["dep:clap"]
 
 [lints]
 workspace = true

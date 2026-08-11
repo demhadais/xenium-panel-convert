@@ -2,16 +2,23 @@ use hdf5_metno::{File, types::FixedAscii};
 use ndarray::Array1;
 use serde::Serialize;
 
-use crate::reference_dataset::h5_util::{read_1d_string_dataset, to_ascii};
+use crate::reference_dataset::{
+    columns::{EnsemblIdCol, GeneNameCol},
+    h5_util::{read_1d_string_dataset, to_ascii},
+};
 
 pub(crate) fn read_features_from_h5ad(
     file: &File,
-    ensembl_id_col: &str,
-    gene_name_col: &str,
+    ensembl_id_col: &EnsemblIdCol,
+    gene_name_col: &GeneNameCol,
 ) -> Result<Features, Error> {
-    let features = [ensembl_id_col, gene_name_col, "feature_types"]
-        .map(|s| format!("var/{s}"))
-        .map(|path| read_1d_string_dataset(file, &path));
+    let features = [
+        ensembl_id_col.as_str(),
+        gene_name_col.as_str(),
+        "feature_types",
+    ]
+    .map(|s| format!("var/{s}"))
+    .map(|path| read_1d_string_dataset(file, &path));
 
     let [Ok(ensembl_ids), Ok(gene_names), Ok(feature_type)] = features else {
         return Err(Error::IncompleteFeatures {

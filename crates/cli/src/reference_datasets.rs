@@ -1,78 +1,61 @@
-use camino::Utf8PathBuf;
-use serde::Serialize;
-use xenium_panel_validate_core::reference_dataset::{
-    self, ReferenceDataset, validate_reference_dataset,
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
 };
 
-use crate::targets::{Chemistry, Species};
+use anyhow::{anyhow, bail, ensure};
+use camino::{Utf8Path, Utf8PathBuf};
+use serde::Serialize;
+use xenium_panel_validate_core::{
+    Species,
+    reference_dataset::{
+        self, ReferenceDataset,
+        columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
+        read_reference_dataset, write_reference_dataset,
+    },
+};
 
-#[allow(clippy::missing_errors_doc)]
-pub fn validate_reference_datasets(
-    CommandlineArgs {
-        paths,
-        cell_barcode_cols,
-        cell_annotation_cols,
-        ensembl_id_cols,
-        gene_name_cols,
-    }: &CommandlineArgs,
-    _species: Species,
-    _chemistry: Chemistry,
-) -> anyhow::Result<Vec<Result<ReferenceDataset, DatasetErrors>>> {
-    anyhow::ensure!(
-        paths.len() == cell_barcode_cols.len()
-            && cell_barcode_cols.len() == cell_annotation_cols.len()
-            && cell_annotation_cols.len() == ensembl_id_cols.len()
-            && ensembl_id_cols.len() == gene_name_cols.len(),
-        "the number of dataset paths, cell-barcode columns, cell-annotation columns, Ensembl ID \
-         columns, and gene-name columns must all be equal"
-    );
+pub fn convert_reference_datasets(
+    CliOptions {
+        reference: reference_datasets,
+    }: &CliOptions,
+    species: Species,
+    output_dir: &Utf8Path,
+) -> anyhow::Result<()> {
+    let mut parsed_datasets = Vec::with_capacity(reference_datasets.len());
+    let mut errors = Vec::with_capacity(reference_datasets.len());
 
-    let mut results = Vec::with_capacity(paths.len());
-
-    for ((((path, cell_barcode_col), cell_annotation_col), ensembl_id_col), gene_name_col) in paths
-        .iter()
-        .zip(cell_barcode_cols)
-        .zip(cell_annotation_cols)
-        .zip(ensembl_id_cols)
-        .zip(gene_name_cols)
+    for ReferenceDatasetSpecification {
+        path,
+        cell_barcode_col,
+        cell_annotation_col,
+        ensembl_id_col,
+        gene_name_col,
+    } in reference_datasets
     {
-        match validate_reference_dataset(
+        match read_reference_dataset(
             path,
             cell_barcode_col,
             cell_annotation_col,
             ensembl_id_col,
             gene_name_col,
+            species,
         ) {
-            Ok(ds) => results.push(Ok(ds)),
-            Err(errors) => results.push(Err(DatasetErrors {
-                path: path.to_owned(),
-                errors,
-            })),
+            Ok(ds) => {
+                parsed_datasets.push(ds);
+            }
+            Err(errs) => {
+                errors.push(DatasetErrors {
+                    path: path.to_owned(),
+                    errors: errs,
+                });
+            }
         }
     }
 
-    Ok(results)
-}
+    for ds in &parsed_datasets {}
 
-#[derive(Clone, Debug, clap::Args)]
-pub struct CommandlineArgs {
-    #[clap(short, long)]
-    paths: Vec<Utf8PathBuf>,
-    #[clap(short = 'b', long)]
-    cell_barcode_cols: Vec<String>,
-    #[clap(short = 'a', long)]
-    cell_annotation_cols: Vec<String>,
-    #[clap(short, long)]
-    ensembl_id_cols: Vec<String>,
-    #[clap(short, long)]
-    gene_name_cols: Vec<String>,
-}
-
-impl CommandlineArgs {
-    #[must_use]
-    pub fn paths(&self) -> &[Utf8PathBuf] {
-        &self.paths
-    }
+    Ok(())
 }
 
 #[derive(Debug, Serialize)]
@@ -81,4 +64,89 @@ pub struct DatasetErrors {
     errors: Vec<reference_dataset::Error>,
 }
 
-pub struct CommmandLineArgs2 {}
+#[derive(Clone, Debug)]
+struct ReferenceDatasetSpecification {
+    path: Utf8PathBuf,
+    cell_barcode_col: CellBarcodeCol,
+    cell_annotation_col: CellAnnotationCol,
+    ensembl_id_col: EnsemblIdCol,
+    gene_name_col: GeneNameCol,
+}
+
+impl ReferenceDatasetSpecification {
+    fn parse_commandline(s: &str) -> anyhow::Result<Self> {
+        const EXAMPLE: &str = "xp-prep --reference 'path=matrix.h5ad,barcode_col=barcodes,annotation_col=annotations,ensembl_id_col=gene_ids\nxp-prep --r 'matrix.h5ad,b=barcodes,a=annotations,e=gene_ids";
+
+        fn get_spec_value_default<'a, T: Default + From<&'a str>>(
+            spec: &'a HashMap<&str, &str>,
+            key: &str,
+        ) -> T {
+            spec.get(key).map(|v| T::from(*v)).unwrap_or_default()
+        }
+
+        fn get_spec_value<'a, T: From<&'a str>>(
+            spec: &'a HashMap<&str, &str>,
+            key: &str,
+        ) -> anyhow::Result<T> {
+            spec.get(key)
+                .map(|v| T::from(*v))
+                .ok_or_else(|| anyhow!("{key} not found - specify key-value pairs as one of the following (mixing allowed):\n{EXAMPLE}"))
+        }
+
+        let key_aliases: HashMap<_, _> = [
+            ("p", "path"),
+            ("b", "barcode_col"),
+            ("a", "annotation_col"),
+            ("e", "ensembl_id_col"),
+            ("g", "gene_name_col"),
+        ]
+        .clone()
+        .into_iter()
+        .collect();
+        let allowed_keys: HashSet<_> = key_aliases
+            .iter()
+            .map(|(s1, s2)| [*s1, *s2])
+            .flatten()
+            .collect();
+
+        let mut spec = HashMap::with_capacity(6);
+
+        for (i, kv_pair) in s.split(',').enumerate() {
+            let (key, value) = match (i, kv_pair.split_once('=')) {
+                (_, Some((key, value))) => (key, value),
+                (0, None) => ("path", kv_pair),
+                (_, None) => {
+                    bail!(
+                        "reference dataset specification must be provided as one of the following (mixing allowed):\n{EXAMPLE}"
+                    );
+                }
+            };
+
+            ensure!(
+                allowed_keys.contains(key),
+                "key {key} not recognized in reference dataset specification"
+            );
+
+            let key = key_aliases.get(key).unwrap_or(&key);
+
+            ensure!(
+                spec.insert(*key, value).is_none(),
+                "{key} may not be specified more than once"
+            );
+        }
+
+        Ok(Self {
+            path: get_spec_value(&spec, "path")?,
+            cell_barcode_col: get_spec_value_default(&spec, "barcode_col"),
+            cell_annotation_col: get_spec_value(&spec, "annotation_col")?,
+            ensembl_id_col: get_spec_value_default(&spec, "ensembl_id_col"),
+            gene_name_col: get_spec_value_default(&spec, "gene_name_col"),
+        })
+    }
+}
+
+#[derive(Clone, Debug, clap::Args)]
+pub struct CliOptions {
+    #[clap(long, value_parser = ReferenceDatasetSpecification::parse_commandline, help = "Reference dataset specification.")]
+    reference: Vec<ReferenceDatasetSpecification>,
+}

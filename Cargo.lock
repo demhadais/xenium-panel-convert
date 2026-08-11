@@ -2291,6 +2291,7 @@ version = "0.4.0"
 dependencies = [
  "anyhow",
  "bytes",
+ "clap",
  "csv",
  "futures",
  "hdf5-metno",

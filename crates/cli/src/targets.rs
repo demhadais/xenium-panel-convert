@@ -1,27 +1,32 @@
 use std::{collections::HashMap, fs};
 
 use anyhow::{Context, anyhow};
-use camino::Utf8PathBuf;
+use camino::{Utf8Path, Utf8PathBuf};
 
-use xenium_panel_validate_core::target_list::{
-    self, XeniumPanelDesignerGeneList,
-    chemistry::{
-        xenium_prime_human_ensembl_id_to_gene, xenium_prime_mouse_ensembl_id_to_gene,
-        xenium_v1_human_ensembl_id_to_gene, xenium_v1_mouse_ensembl_id_to_gene,
+use xenium_panel_validate_core::{
+    Chemistry, Species,
+    target_list::{
+        self, XeniumPanelDesignerGeneList,
+        chemistry::{
+            xenium_prime_human_ensembl_id_to_gene, xenium_prime_mouse_ensembl_id_to_gene,
+            xenium_v1_human_ensembl_id_to_gene, xenium_v1_mouse_ensembl_id_to_gene,
+        },
+        parse_target_list,
     },
-    parse_target_list,
 };
 
-#[allow(clippy::missing_errors_doc)]
-pub fn parse_target_list_from_file(
-    CommandlineArgs {
+use crate::error::write_error_report;
+
+pub fn convert_target_list(
+    CliOptions {
         target_path,
         field_alias_path,
         field_aliases,
-    }: &CommandlineArgs,
+    }: &CliOptions,
     species: Species,
     chemistry: Chemistry,
-) -> anyhow::Result<Result<XeniumPanelDesignerGeneList, Vec<target_list::Error>>> {
+    output_dir: &Utf8Path,
+) -> anyhow::Result<()> {
     let target_list = fs::read_to_string(target_path)
         .with_context(|| format!("failed to read target-list from {target_path}"))?;
 
@@ -46,8 +51,6 @@ pub fn parse_target_list_from_file(
             }
         })?;
 
-    // Each arm passes a distinct function item, so the gene lookup is monomorphized
-    // rather than called through a function pointer
     let result = match (species, chemistry) {
         (Species::HomoSapiens, Chemistry::V1) => parse_target_list(
             &target_list,
@@ -71,11 +74,14 @@ pub fn parse_target_list_from_file(
         ),
     };
 
-    Ok(result.map(XeniumPanelDesignerGeneList::from_valid_targets))
+    match result {
+        Ok(valid_targets) => Ok(()),
+        Err(e) => write_error_report(&e, &output_dir.join("target-list-errors.json")),
+    }
 }
 
 #[derive(Debug, Clone, clap::Args)]
-pub struct CommandlineArgs {
+pub struct CliOptions {
     target_path: Utf8PathBuf,
     #[clap(long, short = 'p')]
     field_alias_path: Option<Utf8PathBuf>,
@@ -110,18 +116,6 @@ fn combine_field_aliases<'a>(
     }
 
     Ok(field_aliases)
-}
-
-#[derive(Debug, Clone, Copy, clap::ValueEnum)]
-pub enum Species {
-    HomoSapiens,
-    MusMusculus,
-}
-
-#[derive(Debug, Clone, Copy, clap::ValueEnum)]
-pub enum Chemistry {
-    V1,
-    Prime,
 }
 
 #[cfg(test)]
