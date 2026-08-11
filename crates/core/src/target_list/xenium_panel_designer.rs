@@ -7,7 +7,7 @@ use crate::target_list::{
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(transparent)]
-pub struct XeniumPanelDesignerGeneList(Vec<XeniumPanelDesignerTarget>);
+pub struct XeniumPanelDesignerGeneList(Vec<XeniumPanelDesignerGene>);
 
 impl XeniumPanelDesignerGeneList {
     pub fn from_valid_targets(mut valid_targets: Vec<ValidTarget>) -> Self {
@@ -16,14 +16,14 @@ impl XeniumPanelDesignerGeneList {
         Self(
             valid_targets
                 .iter()
-                .map(XeniumPanelDesignerTarget::from_valid_target)
+                .map(XeniumPanelDesignerGene::from_valid_target)
                 .collect(),
         )
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-struct XeniumPanelDesignerTarget {
+struct XeniumPanelDesignerGene {
     #[serde(rename = "Gene")]
     gene: GeneName,
     #[serde(rename = "Ensembl ID")]
@@ -34,7 +34,7 @@ struct XeniumPanelDesignerTarget {
     force: Option<Force>,
 }
 
-impl XeniumPanelDesignerTarget {
+impl XeniumPanelDesignerGene {
     fn from_valid_target(
         ValidTarget {
             gene: ValidGene {
