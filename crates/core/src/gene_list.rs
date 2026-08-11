@@ -22,7 +22,7 @@ pub fn parse_target_list(
     target_list: &str,
     field_aliases: &HashMap<&str, &str>,
     ensembl_id_to_gene: impl Fn(&UnvalidatedEnsemblId) -> Option<(EnsemblId, GeneName)> + Copy,
-) -> Result<XeniumPanelDesignerGeneList, Vec<Error>> {
+) -> Result<Vec<ValidTarget>, Vec<Error>> {
     const N_GENES: usize = 500;
 
     let mut reader = read_csv_trimmed(target_list);
@@ -67,9 +67,7 @@ pub fn parse_target_list(
         return Err(errors);
     }
 
-    Ok(XeniumPanelDesignerGeneList::from_valid_targets(
-        valid_targets,
-    ))
+    Ok(valid_targets)
 }
 
 fn push_validation_result(

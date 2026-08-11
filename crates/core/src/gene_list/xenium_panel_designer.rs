@@ -10,7 +10,7 @@ use crate::gene_list::{
 pub struct XeniumPanelDesignerGeneList(Vec<XeniumPanelDesignerTarget>);
 
 impl XeniumPanelDesignerGeneList {
-    pub(super) fn from_valid_targets(mut valid_targets: Vec<ValidTarget>) -> Self {
+    pub fn from_valid_targets(mut valid_targets: Vec<ValidTarget>) -> Self {
         valid_targets.sort_by_key(|target| target.priority);
 
         Self(
@@ -55,6 +55,7 @@ impl XeniumPanelDesignerTarget {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
 enum Force {
     Forced,
 }

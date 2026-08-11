@@ -5,7 +5,7 @@ pub(crate) use matrix::RawCscUmiCounts;
 use serde::Serialize;
 
 use crate::reference_dataset::{
-    h5::{FieldType, ReadFieldError, read_attribute, read_container, read_dataset_raw},
+    h5_util::{FieldType, ReadFieldError, read_attribute, read_container, read_dataset_raw},
     umi_counts::encoding_type::{DenseEncodingType, EncodingType, SparseEncodingType},
 };
 

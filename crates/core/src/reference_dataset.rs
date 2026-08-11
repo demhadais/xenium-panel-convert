@@ -5,19 +5,19 @@ use ndarray::Array1;
 use serde::Serialize;
 
 use crate::reference_dataset::{
-    h5::write_dataset_to_h5_group,
+    h5_util::write_dataset_to_h5_group,
     obs::{read_cell_annotations_from_h5ad, read_cell_barcodes_from_h5ad},
     umi_counts::{RawCscUmiCounts, read_umi_counts_from_h5ad},
     var::{Features, read_features_from_h5ad},
 };
 
 mod feature_sets;
-mod h5;
+mod h5_util;
 mod obs;
 mod umi_counts;
 mod var;
 
-pub use h5::{FieldType, ReadFieldError};
+pub use h5_util::{FieldType, ReadFieldError};
 pub use obs::Error as ObsError;
 pub use umi_counts::Error as UmiCountsError;
 pub use var::Error as VarError;
@@ -209,7 +209,7 @@ mod tests {
     use hdf5_metno::types::FixedAscii;
 
     use crate::reference_dataset::{
-        h5::read_1d_dataset,
+        h5_util::read_1d_dataset,
         validate_reference_dataset,
         var::{EnsemblId, GeneName},
     };

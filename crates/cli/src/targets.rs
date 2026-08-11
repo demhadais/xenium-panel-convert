@@ -71,7 +71,7 @@ pub fn parse_target_list_from_file(
         ),
     };
 
-    Ok(result)
+    Ok(result.map(XeniumPanelDesignerGeneList::from_valid_targets))
 }
 
 #[derive(Debug, Clone, clap::Args)]

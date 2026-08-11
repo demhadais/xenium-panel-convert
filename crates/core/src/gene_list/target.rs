@@ -8,6 +8,20 @@ use crate::gene_list::{
     chemistry::{EnsemblId, GeneName, UnvalidatedEnsemblId, UnvalidatedGeneName},
 };
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+struct UnvalidatedGene {
+    ensembl_id: Option<UnvalidatedEnsemblId>,
+    gene_name: Option<UnvalidatedGeneName>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub(crate) struct UnvalidatedTarget {
+    #[serde(flatten)]
+    gene: UnvalidatedGene,
+    group: Option<String>,
+    priority: Option<String>,
+}
+
 impl UnvalidatedTarget {
     pub(super) fn from_record(record: &StringRecord, fieldnames: &StringRecord) -> Self {
         // Unwrapping is fine because extra fields won't cause a failure, nor will
@@ -70,23 +84,6 @@ fn parse_priority_field(s: Option<&str>) -> Result<Priority, ErrorInner> {
     })
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub(crate) struct ValidTarget {
-    #[serde(flatten)]
-    pub(crate) gene: ValidGene,
-    pub(crate) group: String,
-    pub(crate) priority: Priority,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq, strum::EnumString, PartialOrd, Ord)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub(crate) enum Priority {
-    MustHave,
-    Desired,
-    Backup,
-}
-
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq, Hash)]
 pub(crate) struct ValidGene {
     pub(crate) ensembl_id: EnsemblId,
@@ -137,18 +134,21 @@ impl ValidGene {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub(crate) struct UnvalidatedTarget {
-    #[serde(flatten)]
-    gene: UnvalidatedGene,
-    group: Option<String>,
-    priority: Option<String>,
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq, strum::EnumString, PartialOrd, Ord)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub(crate) enum Priority {
+    MustHave,
+    Desired,
+    Backup,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-struct UnvalidatedGene {
-    ensembl_id: Option<UnvalidatedEnsemblId>,
-    gene_name: Option<UnvalidatedGeneName>,
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct ValidTarget {
+    #[serde(flatten)]
+    pub(crate) gene: ValidGene,
+    pub(crate) group: String,
+    pub(crate) priority: Priority,
 }
 
 #[cfg(test)]
