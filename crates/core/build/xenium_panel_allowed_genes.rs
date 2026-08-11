@@ -59,7 +59,7 @@ pub(crate) async fn write_gene_maps() -> anyhow::Result<()> {
         ),
     ] {
         write_map_to_file(
-            &PathBuf::from(format!("src/gene_list/chemistry/{filename}")),
+            &PathBuf::from(format!("src/target_list/chemistry/{filename}")),
             map_name,
             gene_map,
         )?;

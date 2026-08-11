@@ -94,7 +94,7 @@ fn ensembl_id_to_gene(
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use crate::gene_list::chemistry::{
+    use crate::target_list::chemistry::{
         GeneName, UnvalidatedEnsemblId, xenium_prime_human::XENIUM_PRIME_HUMAN_GENES,
         xenium_prime_mouse::XENIUM_PRIME_MOUSE_GENES, xenium_v1_human::XENIUM_V1_HUMAN_GENES,
         xenium_v1_human_ensembl_id_to_gene, xenium_v1_mouse::XENIUM_V1_MOUSE_GENES,

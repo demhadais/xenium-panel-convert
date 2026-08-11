@@ -1,2 +1,2 @@
-pub mod gene_list;
+pub mod target_list;
 pub mod reference_dataset;

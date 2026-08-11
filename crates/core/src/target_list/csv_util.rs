@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use csv::StringRecord;
 
-use crate::gene_list::{Error, ErrorInner};
+use crate::target_list::{Error, ErrorInner};
 
 pub(super) fn read_csv_trimmed(target_list: &str) -> csv::Reader<&[u8]> {
     let target_list = target_list.trim();
@@ -62,7 +62,7 @@ pub(super) fn extract_record<'a>(
 
 #[cfg(test)]
 mod tests {
-    use crate::gene_list::{Error, ErrorInner, csv_util::rename_fields};
+    use crate::target_list::{Error, ErrorInner, csv_util::rename_fields};
 
     #[test]
     fn renaming_fields() {

@@ -6,7 +6,7 @@ pub(crate) use error::ErrorInner;
 pub(crate) use target::{Priority as TargetPriority, ValidGene, ValidTarget};
 pub use xenium_panel_designer::XeniumPanelDesignerGeneList;
 
-use crate::gene_list::{
+use crate::target_list::{
     csv_util::{extract_record, read_csv_trimmed, rename_fields},
     target::UnvalidatedTarget,
 };
@@ -106,7 +106,7 @@ fn push_validation_result(
 mod tests {
     use std::collections::HashMap;
 
-    use crate::gene_list::{
+    use crate::target_list::{
         ErrorInner,
         chemistry::{tests::tp53_ensembl_id, xenium_v1_human_ensembl_id_to_gene},
         parse_target_list,

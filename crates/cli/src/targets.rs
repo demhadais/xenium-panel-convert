@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs};
 use anyhow::{Context, anyhow};
 use camino::Utf8PathBuf;
 
-use xenium_panel_validate_core::gene_list::{
+use xenium_panel_validate_core::target_list::{
     self, XeniumPanelDesignerGeneList,
     chemistry::{
         xenium_prime_human_ensembl_id_to_gene, xenium_prime_mouse_ensembl_id_to_gene,
@@ -21,7 +21,7 @@ pub fn parse_target_list_from_file(
     }: &CommandlineArgs,
     species: Species,
     chemistry: Chemistry,
-) -> anyhow::Result<Result<XeniumPanelDesignerGeneList, Vec<gene_list::Error>>> {
+) -> anyhow::Result<Result<XeniumPanelDesignerGeneList, Vec<target_list::Error>>> {
     let target_list = fs::read_to_string(target_path)
         .with_context(|| format!("failed to read target-list from {target_path}"))?;
 

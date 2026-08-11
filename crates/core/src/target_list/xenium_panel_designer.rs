@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::gene_list::{
+use crate::target_list::{
     TargetPriority, ValidGene, ValidTarget,
     chemistry::{EnsemblId, GeneName},
 };

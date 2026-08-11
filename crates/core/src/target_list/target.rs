@@ -3,7 +3,7 @@ use std::str::FromStr;
 use csv::StringRecord;
 use serde::{Deserialize, Serialize};
 
-use crate::gene_list::{
+use crate::target_list::{
     ErrorInner,
     chemistry::{EnsemblId, GeneName, UnvalidatedEnsemblId, UnvalidatedGeneName},
 };
@@ -153,7 +153,7 @@ pub struct ValidTarget {
 
 #[cfg(test)]
 mod tests {
-    use crate::gene_list::{
+    use crate::target_list::{
         ErrorInner,
         chemistry::{
             UnvalidatedEnsemblId, UnvalidatedGeneName, tests::tp53_ensembl_id,
