@@ -25,7 +25,10 @@ pub(crate) fn read_container(file: &File, path: &str) -> Result<Container, ReadF
     Ok(container)
 }
 
-pub(crate) fn read_attribute<T: H5Type>(container: &Container, path: &str) -> Result<T, ReadFieldError> {
+pub(crate) fn read_attribute<T: H5Type>(
+    container: &Container,
+    path: &str,
+) -> Result<T, ReadFieldError> {
     container
         .attr(path)
         .and_then(|a| a.read_scalar())
@@ -35,7 +38,10 @@ pub(crate) fn read_attribute<T: H5Type>(container: &Container, path: &str) -> Re
         })
 }
 
-pub(crate) fn read_1d_dataset<T: H5Type>(file: &File, path: &str) -> Result<Array1<T>, ReadFieldError> {
+pub(crate) fn read_1d_dataset<T: H5Type>(
+    file: &File,
+    path: &str,
+) -> Result<Array1<T>, ReadFieldError> {
     file.dataset(path)
         .and_then(|ds| ds.read_1d())
         .map_err(|_| ReadFieldError::DataTypeOrMissing {
@@ -44,7 +50,10 @@ pub(crate) fn read_1d_dataset<T: H5Type>(file: &File, path: &str) -> Result<Arra
         })
 }
 
-pub(crate) fn read_dataset_raw<T: H5Type>(file: &File, path: &str) -> Result<Vec<T>, ReadFieldError> {
+pub(crate) fn read_dataset_raw<T: H5Type>(
+    file: &File,
+    path: &str,
+) -> Result<Vec<T>, ReadFieldError> {
     file.dataset(path)
         .and_then(|ds| ds.read_raw())
         .map_err(|_| ReadFieldError::DataTypeOrMissing {

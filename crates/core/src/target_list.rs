@@ -119,8 +119,8 @@ mod tests {
 
         // Two rows with the same Ensembl ID/gene-name pair but differing other fields
         let gene_list = format!(
-            "ensembl_id,gene_name,group,priority\n{ensembl_id_str},TP53,group0,\
-             must_have\n{ensembl_id_str},TP53,group1,backup"
+            "ensembl_id,gene_name,group,priority\n{ensembl_id_str},TP53,group0,must_have\\
+             n{ensembl_id_str},TP53,group1,backup"
         );
 
         let errors = parse_target_list(

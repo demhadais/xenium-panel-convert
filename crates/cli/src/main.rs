@@ -1,17 +1,9 @@
-use std::{
-    fs,
-    io::{self, Write},
-};
-
-use anyhow::{Context, bail};
-use camino::Utf8Path;
 use clap::Parser;
-use serde::Serialize;
 use xenium_panel_validate::{
     reference_datasets::{self, convert_reference_datasets},
     targets::{self, convert_target_list},
 };
-use xenium_panel_validate_core::{Chemistry, Species, reference_dataset::write_reference_dataset};
+use xenium_panel_validate_core::{Chemistry, Species};
 
 fn main() -> anyhow::Result<()> {
     let Cli {

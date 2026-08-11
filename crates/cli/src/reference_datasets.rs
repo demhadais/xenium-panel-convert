@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-};
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{anyhow, bail, ensure};
 use camino::{Utf8Path, Utf8PathBuf};
@@ -9,9 +6,9 @@ use serde::Serialize;
 use xenium_panel_validate_core::{
     Species,
     reference_dataset::{
-        self, ReferenceDataset,
+        self,
         columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
-        read_reference_dataset, write_reference_dataset,
+        read_reference_dataset,
     },
 };
 
@@ -20,7 +17,7 @@ pub fn convert_reference_datasets(
         reference: reference_datasets,
     }: &CliOptions,
     species: Species,
-    output_dir: &Utf8Path,
+    _output_dir: &Utf8Path,
 ) -> anyhow::Result<()> {
     let mut parsed_datasets = Vec::with_capacity(reference_datasets.len());
     let mut errors = Vec::with_capacity(reference_datasets.len());
@@ -53,7 +50,7 @@ pub fn convert_reference_datasets(
         }
     }
 
-    for ds in &parsed_datasets {}
+    for _ds in &parsed_datasets {}
 
     Ok(())
 }
@@ -75,7 +72,10 @@ struct ReferenceDatasetSpecification {
 
 impl ReferenceDatasetSpecification {
     fn parse_commandline(s: &str) -> anyhow::Result<Self> {
-        const EXAMPLE: &str = "xp-prep --reference 'path=matrix.h5ad,barcode_col=barcodes,annotation_col=annotations,ensembl_id_col=gene_ids\nxp-prep --r 'matrix.h5ad,b=barcodes,a=annotations,e=gene_ids";
+        const EXAMPLE: &str = "xp-prep --reference \
+                               'path=matrix.h5ad,barcode_col=barcodes,annotation_col=annotations,\
+                               ensembl_id_col=gene_ids\nxp-prep --r \
+                               'matrix.h5ad,b=barcodes,a=annotations,e=gene_ids";
 
         fn get_spec_value_default<'a, T: Default + From<&'a str>>(
             spec: &'a HashMap<&str, &str>,
@@ -88,9 +88,12 @@ impl ReferenceDatasetSpecification {
             spec: &'a HashMap<&str, &str>,
             key: &str,
         ) -> anyhow::Result<T> {
-            spec.get(key)
-                .map(|v| T::from(*v))
-                .ok_or_else(|| anyhow!("{key} not found - specify key-value pairs as one of the following (mixing allowed):\n{EXAMPLE}"))
+            spec.get(key).map(|v| T::from(*v)).ok_or_else(|| {
+                anyhow!(
+                    "{key} not found - specify key-value pairs as one of the following (mixing \
+                     allowed):\n{EXAMPLE}"
+                )
+            })
         }
 
         let key_aliases: HashMap<_, _> = [
@@ -117,7 +120,8 @@ impl ReferenceDatasetSpecification {
                 (0, None) => ("path", kv_pair),
                 (_, None) => {
                     bail!(
-                        "reference dataset specification must be provided as one of the following (mixing allowed):\n{EXAMPLE}"
+                        "reference dataset specification must be provided as one of the following \
+                         (mixing allowed):\n{EXAMPLE}"
                     );
                 }
             };

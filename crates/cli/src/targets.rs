@@ -2,11 +2,9 @@ use std::{collections::HashMap, fs};
 
 use anyhow::{Context, anyhow};
 use camino::{Utf8Path, Utf8PathBuf};
-
 use xenium_panel_validate_core::{
     Chemistry, Species,
     target_list::{
-        self, XeniumPanelDesignerGeneList,
         chemistry::{
             xenium_prime_human_ensembl_id_to_gene, xenium_prime_mouse_ensembl_id_to_gene,
             xenium_v1_human_ensembl_id_to_gene, xenium_v1_mouse_ensembl_id_to_gene,
@@ -75,7 +73,7 @@ pub fn convert_target_list(
     };
 
     match result {
-        Ok(valid_targets) => Ok(()),
+        Ok(_valid_targets) => Ok(()),
         Err(e) => write_error_report(&e, &output_dir.join("target-list-errors.json")),
     }
 }
