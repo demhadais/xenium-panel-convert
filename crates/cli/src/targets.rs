@@ -5,6 +5,7 @@ use camino::{Utf8Path, Utf8PathBuf};
 use xenium_panel_validate_core::{
     Chemistry, Species,
     target_list::{
+        ValidTarget, XeniumPanelDesignerGeneList,
         chemistry::{
             xenium_prime_human_ensembl_id_to_gene, xenium_prime_mouse_ensembl_id_to_gene,
             xenium_v1_human_ensembl_id_to_gene, xenium_v1_mouse_ensembl_id_to_gene,
@@ -73,9 +74,26 @@ pub fn convert_target_list(
     };
 
     match result {
-        Ok(_valid_targets) => Ok(()),
+        Ok(targets) => {
+            write_valid_targets(&targets, &output_dir.join("validated-targets.csv"))?;
+            write_targets_for_xenium_panel_designer(
+                &XeniumPanelDesignerGeneList::from_valid_targets(targets),
+                &output_dir.join("xenium-panel-designer-targets.csv"),
+            )
+        }
         Err(e) => write_error_report(&e, &output_dir.join("target-list-errors.json")),
     }
+}
+
+fn write_valid_targets(targets: &[ValidTarget], path: &Utf8Path) -> anyhow::Result<()> {
+    todo!()
+}
+
+fn write_targets_for_xenium_panel_designer(
+    targets: &XeniumPanelDesignerGeneList,
+    path: &Utf8Path,
+) -> anyhow::Result<()> {
+    todo!()
 }
 
 #[derive(Debug, Clone, clap::Args)]

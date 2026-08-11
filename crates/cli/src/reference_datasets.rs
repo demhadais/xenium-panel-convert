@@ -12,12 +12,14 @@ use xenium_panel_validate_core::{
     },
 };
 
+use crate::error::write_error_report;
+
 pub fn convert_reference_datasets(
     CliOptions {
         reference: reference_datasets,
     }: &CliOptions,
     species: Species,
-    _output_dir: &Utf8Path,
+    output_dir: &Utf8Path,
 ) -> anyhow::Result<()> {
     let mut parsed_datasets = Vec::with_capacity(reference_datasets.len());
     let mut errors = Vec::with_capacity(reference_datasets.len());
@@ -50,7 +52,21 @@ pub fn convert_reference_datasets(
         }
     }
 
-    for _ds in &parsed_datasets {}
+    for _ds in &parsed_datasets {
+        todo!()
+    }
+
+    for error_set in &errors {
+        write_error_report(
+            error_set,
+            &output_dir.join(
+                error_set
+                    .path
+                    .file_name()
+                    .expect("a filename shouldn't terminate in '..'"),
+            ),
+        )?;
+    }
 
     Ok(())
 }

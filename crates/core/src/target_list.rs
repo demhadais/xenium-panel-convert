@@ -3,7 +3,8 @@ use std::collections::{HashMap, HashSet};
 use chemistry::{EnsemblId, GeneName, UnvalidatedEnsemblId};
 pub use error::Error;
 pub(crate) use error::ErrorInner;
-pub(crate) use target::{Priority as TargetPriority, ValidGene, ValidTarget};
+pub use target::ValidTarget;
+pub(crate) use target::{Priority as TargetPriority, ValidGene};
 pub use xenium_panel_designer::XeniumPanelDesignerGeneList;
 
 use crate::target_list::{
