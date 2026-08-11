@@ -21,7 +21,7 @@ type ValidatedCscMatrix = CscMatrix<i32>;
 pub(crate) struct RawCscUmiCounts(ValidatedCscMatrix);
 
 impl RawCscUmiCounts {
-    pub(crate) fn from_sparse_matrix(
+    pub(super) fn from_sparse_matrix(
         shape: (usize, usize),
         indptr: Vec<i64>,
         indices: Vec<i64>,
@@ -44,7 +44,7 @@ impl RawCscUmiCounts {
         Ok(Self(mtx))
     }
 
-    pub(crate) fn from_dense_matrix(
+    pub(super) fn from_dense_matrix(
         counts: &Array2<f32>,
         encoding_type: DenseEncodingType,
     ) -> Result<Self, Error> {

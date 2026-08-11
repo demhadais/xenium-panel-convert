@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 #[derive(Clone, Copy, Debug, strum::Display)]
-pub(crate) enum EncodingType {
+pub(super) enum EncodingType {
     #[strum(transparent)]
     Dense(DenseEncodingType),
     #[strum(transparent)]
@@ -29,13 +29,13 @@ impl FromStr for EncodingType {
 
 #[derive(Clone, Copy, Debug, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "snake_case")]
-pub(crate) enum DenseEncodingType {
+pub(super) enum DenseEncodingType {
     Array,
 }
 
 #[derive(Clone, Copy, Debug, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "snake_case")]
-pub(crate) enum SparseEncodingType {
+pub(super) enum SparseEncodingType {
     CsrMatrix,
     CscMatrix,
 }

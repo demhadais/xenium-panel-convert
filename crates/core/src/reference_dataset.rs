@@ -11,16 +11,12 @@ use crate::reference_dataset::{
     var::{Features, read_features_from_h5ad},
 };
 
-mod feature_sets;
-mod h5_util;
-mod obs;
-mod umi_counts;
-mod var;
-
-pub use h5_util::{FieldType, ReadFieldError};
-pub use obs::Error as ObsError;
-pub use umi_counts::Error as UmiCountsError;
-pub use var::Error as VarError;
+pub mod feature_sets;
+pub mod h5_util;
+pub mod obs;
+pub mod specification;
+pub mod umi_counts;
+pub mod var;
 
 pub fn validate_reference_dataset(
     path: impl AsRef<Path>,
@@ -112,10 +108,10 @@ pub fn write_reference_dataset(
     write_dataset_to_h5_group(
         &matrix_group,
         "features/feature_type",
-        features.feature_type(),
+        &features.feature_type,
     )?;
-    write_dataset_to_h5_group(&matrix_group, "features/id", features.id())?;
-    write_dataset_to_h5_group(&matrix_group, "features/name", features.name())?;
+    write_dataset_to_h5_group(&matrix_group, "features/id", &features.id)?;
+    write_dataset_to_h5_group(&matrix_group, "features/name", &features.name)?;
 
     write_annotations_csv(path.join("annotations.csv"), barcodes, cell_annotations)?;
 
@@ -172,17 +168,17 @@ pub enum Error {
     #[error(transparent)]
     UmiCounts {
         #[from]
-        error: UmiCountsError,
+        error: umi_counts::Error,
     },
     #[error(transparent)]
     Obs {
         #[from]
-        error: ObsError,
+        error: obs::Error,
     },
     #[error(transparent)]
     Var {
         #[from]
-        error: VarError,
+        error: var::Error,
     },
     #[error("number of cell barcodes != number of cell annotations")]
     BarcodeAnnotationMismatch,
@@ -291,13 +287,10 @@ mod tests {
 
         let original_feature_ids =
             read_1d_dataset::<EnsemblId>(&original_h5, "matrix/features/id").unwrap();
-        assert_eq!(original_feature_ids, reconstructed_dataset.features.id());
+        assert_eq!(original_feature_ids, reconstructed_dataset.features.id);
 
         let original_feature_names =
             read_1d_dataset::<GeneName>(&original_h5, "matrix/features/name").unwrap();
-        assert_eq!(
-            original_feature_names,
-            reconstructed_dataset.features.name()
-        );
+        assert_eq!(original_feature_names, reconstructed_dataset.features.name);
     }
 }

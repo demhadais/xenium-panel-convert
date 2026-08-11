@@ -80,3 +80,5 @@ pub struct DatasetErrors {
     path: Utf8PathBuf,
     errors: Vec<reference_dataset::Error>,
 }
+
+pub struct CommmandLineArgs2 {}

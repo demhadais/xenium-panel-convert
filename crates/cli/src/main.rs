@@ -82,6 +82,18 @@ fn write_json_report(data: &impl Serialize, output_path: Option<&Utf8Path>) -> a
 }
 
 #[derive(clap::Parser)]
+struct Cli2 {
+    #[clap(long, short)]
+    species: Species,
+    #[clap(long, short)]
+    chemistry: Chemistry,
+    #[clap(long, short)]
+    output_dir: Option<camino::Utf8PathBuf>,
+}
+
+enum Command {}
+
+#[derive(clap::Parser)]
 enum Cli {
     Targets {
         #[clap(flatten)]

@@ -36,36 +36,22 @@ fn check_genes_are_from_correct_genome() {}
 // Human Ensembl IDs are 15 characters while mouse Ensembl IDs are 18
 pub(crate) type EnsemblId = FixedAscii<18>;
 
-type EnsemblIds = Array1<EnsemblId>;
+pub(crate) type EnsemblIds = Array1<EnsemblId>;
 
 // No gene name is likely to exceed 32 characters
 pub(crate) type GeneName = FixedAscii<32>;
 
-type GeneNames = Array1<GeneName>;
+pub(crate) type GeneNames = Array1<GeneName>;
 
-type FeatureType = FixedAscii<32>;
+pub(crate) type FeatureType = FixedAscii<32>;
 
-type FeatureTypes = Array1<FeatureType>;
+pub(crate) type FeatureTypes = Array1<FeatureType>;
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct Features {
-    id: EnsemblIds,
-    name: GeneNames,
-    feature_type: FeatureTypes,
-}
-
-impl Features {
-    pub(crate) fn id(&self) -> &EnsemblIds {
-        &self.id
-    }
-
-    pub(crate) fn name(&self) -> &GeneNames {
-        &self.name
-    }
-
-    pub(crate) fn feature_type(&self) -> &FeatureTypes {
-        &self.feature_type
-    }
+    pub(crate) id: EnsemblIds,
+    pub(crate) name: GeneNames,
+    pub(crate) feature_type: FeatureTypes,
 }
 
 #[derive(Clone, thiserror::Error, Serialize, Debug)]
