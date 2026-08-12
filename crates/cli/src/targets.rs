@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs};
 
 use anyhow::{Context, anyhow};
 use camino::{Utf8Path, Utf8PathBuf};
-use xenium_panel_validate_core::{
+use xenium_panel_convert_core::{
     Chemistry, Species,
     target_list::{
         ValidTarget, XeniumPanelDesignerGeneList,

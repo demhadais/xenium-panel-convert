@@ -8,7 +8,7 @@ authors = ["Ahmed Said"]
 license = "MIT"
 repository = "https://github.com/demhadais/xenium-panel-validate"
 version = "0.4.0"
-description = "A library and CLI for validating the inputs for a Xenium panel design at the SCBL at The Jackson Laboratory."
+description = "A library and CLI for converting the files to the formats accepted by the 10x Genomics Xenium Panel Designer"
 readme = "README.md"
 
 [workspace.dependencies]

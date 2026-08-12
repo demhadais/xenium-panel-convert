@@ -1,5 +1,5 @@
 [package]
-name = "xenium-panel-validate-core"
+name = "xenium-panel-convert-core"
 version.workspace = true
 edition.workspace = true
 description.workspace = true

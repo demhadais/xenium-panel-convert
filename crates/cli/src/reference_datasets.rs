@@ -4,7 +4,7 @@ use anyhow::{anyhow, bail, ensure};
 use camino::{Utf8Path, Utf8PathBuf};
 use serde::Serialize;
 use serde_json::error::Category::Data;
-use xenium_panel_validate_core::{
+use xenium_panel_convert_core::{
     Species,
     reference_dataset::{
         self,

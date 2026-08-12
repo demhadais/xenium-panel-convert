@@ -1,9 +1,9 @@
 use clap::Parser;
-use xenium_panel_validate::{
+use xenium_panel_convert::{
     reference_datasets::{ReferenceDatasetCliOptions, convert_reference_datasets},
     targets::{TargetListCliOptions, convert_target_list},
 };
-use xenium_panel_validate_core::Species;
+use xenium_panel_convert_core::Species;
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();

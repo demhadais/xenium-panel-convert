@@ -9,15 +9,13 @@ mod xenium_panel_allowed_genes;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    if !option_env!("BUILD_XENIUM_PANEL_VALIDATE")
+    if option_env!("BUILD_XP_CONVERT_GENE_MAPS")
         .map(bool::from_str)
         .transpose()?
         .is_some_and(|build| build)
     {
-        return Ok(());
+        write_gene_maps().await?;
     }
-
-    write_gene_maps().await?;
 
     Ok(())
 }

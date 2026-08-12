@@ -1,0 +1,7 @@
+https://cf.10xgenomics.com/samples/cell-exp/7.1.0/4plex_human_colorectal_kidney_scFFPE_multiplex_Kidney_Manual_BC3/4plex_human_colorectal_kidney_scFFPE_multiplex_Kidney_Manual_BC3_count_sample_filtered_feature_bc_matrix.h5
+
+https://cf.10xgenomics.com/samples/cell-exp/7.0.1/SC3pv3_GEX_Human_PBMC/SC3pv3_GEX_Human_PBMC_filtered_feature_bc_matrix.h5
+
+https://cf.10xgenomics.com/samples/cell-exp/7.0.0/1k_mouse_kidney_CNIK_3pv3/1k_mouse_kidney_CNIK_3pv3_filtered_feature_bc_matrix.h5
+
+https://cf.10xgenomics.com/samples/cell-exp/7.1.0/10k_mouse_spleen_scFFPE_singleplex_10k_mouse_spleen_scFFPE_singleplex/10k_mouse_spleen_scFFPE_singleplex_10k_mouse_spleen_scFFPE_singleplex_count_sample_filtered_feature_bc_matrix.h5

@@ -12,7 +12,7 @@ use crate::{
         h5_util::write_dataset_to_h5_group,
         obs::{read_cell_annotations_from_h5ad, read_cell_barcodes_from_h5ad},
         pseudo_anndata::PseudoAnndata,
-        umi_counts::{RawCscUmiCounts, read_umi_counts_from_h5ad},
+        umi_counts::read_umi_counts_from_h5ad,
         var::{Features, read_features_from_h5ad},
     },
 };
@@ -244,7 +244,7 @@ mod tests {
 
     #[test]
     fn read_real_h5ad() {
-        let filename = "test-data/10k_Human_DTC_Melanoma_3p_gemx_10k_Human_DTC_Melanoma_3p_gemx_count_sample_filtered_feature_bc_matrix.h5ad";
+        let filename = "test-data/1k_mouse_kidney_CNIK_3pv3_filtered_feature_bc_matrix.h5ad";
 
         let reconstructed_dataset = read_reference_dataset(
             filename,
@@ -259,7 +259,10 @@ mod tests {
         .unwrap();
 
         // Compare it against the original data
-        let original_h5 = hdf5_metno::File::open("test-data/10k_Human_DTC_Melanoma_3p_gemx_10k_Human_DTC_Melanoma_3p_gemx_count_sample_filtered_feature_bc_matrix.h5").unwrap();
+        let original_h5 = hdf5_metno::File::open(
+            "test-data/1k_mouse_kidney_CNIK_3pv3_filtered_feature_bc_matrix.h5",
+        )
+        .unwrap();
 
         let original_counts = read_1d_dataset::<i32>(&original_h5, "matrix/data").unwrap();
         assert_eq!(
