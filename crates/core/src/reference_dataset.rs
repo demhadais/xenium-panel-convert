@@ -11,6 +11,7 @@ use crate::{
         columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
         h5_util::write_dataset_to_h5_group,
         obs::{read_cell_annotations_from_h5ad, read_cell_barcodes_from_h5ad},
+        pseudo_anndata::PseudoAnndata,
         umi_counts::{RawCscUmiCounts, read_umi_counts_from_h5ad},
         var::{Features, read_features_from_h5ad},
     },
@@ -20,6 +21,7 @@ pub mod columns;
 pub mod feature_sets;
 pub mod h5_util;
 pub mod obs;
+mod pseudo_anndata;
 pub mod specification;
 pub mod umi_counts;
 pub mod var;
@@ -31,7 +33,7 @@ pub fn read_reference_dataset(
     ensembl_id_col: &EnsemblIdCol,
     gene_name_col: &GeneNameCol,
     species: Species,
-) -> Result<ReferenceDataset, Vec<Error>> {
+) -> Result<PseudoAnndata, Vec<Error>> {
     let mut errors = Vec::new();
 
     let file = hdf5_metno::File::open(path).map_err(|e| {
@@ -42,15 +44,13 @@ pub fn read_reference_dataset(
 
     let counts = read_umi_counts_from_h5ad(&file).map_or_else(|err| errors.push_err(err), Some);
 
-    let counts = read_umi_counts_from_h5ad(&file).map_or_else(|err| errors.push_err(err), Some);
-
     let barcodes = read_cell_barcodes_from_h5ad(&file, cell_barcode_col)
         .map_or_else(|err| errors.push_err(err), Some);
 
     let cell_annotations = read_cell_annotations_from_h5ad(&file, cell_annotation_col)
         .map_or_else(|err| errors.push_err(err), Some);
 
-    let features = read_features_from_h5ad(&file, ensembl_id_col, gene_name_col)
+    let features = read_features_from_h5ad(&file, ensembl_id_col, gene_name_col, todo!())
         .map_or_else(|err| errors.push_err(err), Some);
 
     let (Some(counts), Some(barcodes), Some(cell_annotations), Some(features)) =
@@ -59,24 +59,17 @@ pub fn read_reference_dataset(
         return Err(errors);
     };
 
-    Ok(ReferenceDataset {
-        barcodes,
-        counts,
-        cell_annotations,
-        features,
-    })
+    let anndata =
+        PseudoAnndata::new(counts, barcodes, cell_annotations, features).map_err(|err| {
+            errors.push_err::<()>(err);
+            errors
+        })?;
+
+    Ok(anndata)
 }
 
 // See https://www.10xgenomics.com/support/software/cell-ranger/latest/analysis/outputs/cr-outputs-h5-matrices for format specifics
-pub fn write_reference_dataset(
-    dir: impl AsRef<Path>,
-    ReferenceDataset {
-        barcodes,
-        counts,
-        cell_annotations,
-        features,
-    }: &ReferenceDataset,
-) -> Result<(), Error> {
+pub fn write_reference_dataset(dir: impl AsRef<Path>, ds: &PseudoAnndata) -> Result<(), Error> {
     let dir = dir.as_ref();
 
     if !dir.exists() {
@@ -89,21 +82,25 @@ pub fn write_reference_dataset(
 
     let matrix_group = file.create_group("matrix").unwrap();
 
+    let barcodes = ds.barcodes();
     write_dataset_to_h5_group(&matrix_group, "barcodes", barcodes)?;
+
+    let counts = ds.counts();
     write_dataset_to_h5_group(&matrix_group, "data", counts.data())?;
     write_dataset_to_h5_group(&matrix_group, "indices", counts.indices())?;
     write_dataset_to_h5_group(&matrix_group, "indptr", counts.indptr().iter().as_slice())?;
     write_dataset_to_h5_group(&matrix_group, "shape", &counts.shape())?;
 
+    let features = ds.features();
     write_dataset_to_h5_group(
         &matrix_group,
         "features/feature_type",
-        &features.feature_type,
+        features.feature_types(),
     )?;
-    write_dataset_to_h5_group(&matrix_group, "features/id", &features.id)?;
-    write_dataset_to_h5_group(&matrix_group, "features/name", &features.name)?;
+    write_dataset_to_h5_group(&matrix_group, "features/id", features.ensembl_ids())?;
+    write_dataset_to_h5_group(&matrix_group, "features/name", features.gene_names())?;
 
-    write_annotations_csv(dir.join("annotations.csv"), barcodes, cell_annotations)?;
+    write_annotations_csv(dir.join("annotations.csv"), barcodes, ds.cell_annotations())?;
 
     Ok(())
 }
@@ -117,10 +114,6 @@ fn write_annotations_csv(
     struct CellAnnotation<'a> {
         barcode: &'a str,
         annotation: &'a str,
-    }
-
-    if barcodes.len() != annotations.len() {
-        return Err(Error::BarcodeAnnotationMismatch);
     }
 
     let mut writer = csv::Writer::from_path(path).unwrap();
@@ -141,14 +134,6 @@ type Barcode = FixedAscii<64>;
 type Barcodes = Array1<Barcode>;
 
 type CellAnnotations = Array1<String>;
-
-#[derive(Debug, PartialEq)]
-pub struct ReferenceDataset {
-    barcodes: Barcodes,
-    counts: RawCscUmiCounts,
-    cell_annotations: CellAnnotations,
-    features: Features,
-}
 
 #[derive(Clone, Debug, thiserror::Error, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -171,7 +156,12 @@ pub enum Error {
         error: var::Error,
     },
     #[error("number of cell barcodes != number of cell annotations")]
-    BarcodeAnnotationMismatch,
+    Shape {
+        n_barcodes: usize,
+        n_annotations: usize,
+        n_features: usize,
+        counts_shape: [i32; 2],
+    },
     #[error("invalid output path: {reason}")]
     InvalidOutputPath { path: String, reason: String },
     #[error("something went wrong writing H5 object: {reason}")]
@@ -240,12 +230,12 @@ mod tests {
             .unwrap();
 
             assert_eq!(
-                reference_dataset.counts.data()[0],
+                reference_dataset.counts().data()[0],
                 10,
                 "first entry in UMI counts of {filename} != 10"
             );
 
-            fake_counts.push(reference_dataset.counts);
+            fake_counts.push(reference_dataset.counts().to_owned());
         }
 
         assert_eq!(fake_counts[0], fake_counts[1]);
@@ -274,34 +264,40 @@ mod tests {
         let original_counts = read_1d_dataset::<i32>(&original_h5, "matrix/data").unwrap();
         assert_eq!(
             original_counts.as_slice().unwrap(),
-            reconstructed_dataset.counts.data(),
+            reconstructed_dataset.counts().data(),
             "UMI counts were not correctly reconstructed"
         );
 
         let original_indices = read_1d_dataset::<i64>(&original_h5, "matrix/indices").unwrap();
         assert_eq!(
             original_indices.as_slice().unwrap(),
-            reconstructed_dataset.counts.indices(),
+            reconstructed_dataset.counts().indices(),
             "UMI count indices were not correctly reconstructed"
         );
 
         let original_indptr = read_1d_dataset::<i64>(&original_h5, "matrix/indptr").unwrap();
         assert_eq!(
             original_indptr.as_slice().unwrap(),
-            reconstructed_dataset.counts.indptr().iter().as_slice(),
+            reconstructed_dataset.counts().indptr().iter().as_slice(),
             "UMI counts indptr was not correctly reconstructed"
         );
 
         let original_barcodes =
             read_1d_dataset::<FixedAscii<64>>(&original_h5, "matrix/barcodes").unwrap();
-        assert_eq!(original_barcodes, reconstructed_dataset.barcodes);
+        assert_eq!(original_barcodes, reconstructed_dataset.barcodes());
 
         let original_feature_ids =
             read_1d_dataset::<EnsemblId>(&original_h5, "matrix/features/id").unwrap();
-        assert_eq!(original_feature_ids, reconstructed_dataset.features.id);
+        assert_eq!(
+            original_feature_ids,
+            reconstructed_dataset.features().ensembl_ids()
+        );
 
         let original_feature_names =
             read_1d_dataset::<GeneName>(&original_h5, "matrix/features/name").unwrap();
-        assert_eq!(original_feature_names, reconstructed_dataset.features.name);
+        assert_eq!(
+            original_feature_names,
+            reconstructed_dataset.features().gene_names()
+        );
     }
 }

@@ -1,4 +1,9 @@
-use hdf5_metno::{File, types::FixedAscii};
+use std::collections::HashSet;
+
+use hdf5_metno::{
+    File,
+    types::{FixedAscii, VarLenUnicode},
+};
 use ndarray::Array1;
 use serde::Serialize;
 
@@ -7,10 +12,11 @@ use crate::reference_dataset::{
     h5_util::{read_1d_string_dataset, to_ascii},
 };
 
-pub(crate) fn read_features_from_h5ad(
+pub(super) fn read_features_from_h5ad(
     file: &File,
     ensembl_id_col: &EnsemblIdCol,
     gene_name_col: &GeneNameCol,
+    expected_features: &phf::Set<&str>,
 ) -> Result<Features, Error> {
     let features = [
         ensembl_id_col.as_str(),
@@ -20,7 +26,7 @@ pub(crate) fn read_features_from_h5ad(
     .map(|s| format!("var/{s}"))
     .map(|path| read_1d_string_dataset(file, &path));
 
-    let [Ok(ensembl_ids), Ok(gene_names), Ok(feature_type)] = features else {
+    let [Ok(ensembl_ids), Ok(gene_names), Ok(feature_types)] = features else {
         return Err(Error::IncompleteFeatures {
             reason: format!(
                 "one of the columns '{ensembl_id_col}', '{gene_name_col}', or 'feature_types' \
@@ -29,15 +35,58 @@ pub(crate) fn read_features_from_h5ad(
         });
     };
 
+    check_feature_array_lens(&ensembl_ids, &gene_names, &feature_types)?;
+
+    check_feature_set(&ensembl_ids, expected_features)?;
+
     Ok(Features {
-        id: ensembl_ids.mapv_into_any(|s| to_ascii(&s)),
-        name: gene_names.mapv_into_any(|s| to_ascii(&s)),
-        feature_type: feature_type.mapv_into_any(|s| to_ascii(&s)),
+        ensembl_ids: ensembl_ids.mapv_into_any(|s| to_ascii(&s)),
+        gene_names: gene_names.mapv_into_any(|s| to_ascii(&s)),
+        feature_types: feature_types.mapv_into_any(|s| to_ascii(&s)),
     })
 }
 
-#[allow(dead_code)]
-fn check_genes_are_from_correct_genome() {}
+fn check_feature_array_lens(
+    ensembl_ids: &Array1<VarLenUnicode>,
+    gene_names: &Array1<VarLenUnicode>,
+    feature_types: &Array1<VarLenUnicode>,
+) -> Result<(), Error> {
+    if ensembl_ids.len() != gene_names.len() || ensembl_ids.len() != feature_types.len() {
+        return Err(Error::InvalidShapes {
+            ensembl_ids_len: ensembl_ids.len(),
+            gene_names_len: gene_names.len(),
+            feature_types_len: feature_types.len(),
+        });
+    }
+
+    Ok(())
+}
+
+fn check_feature_set(
+    ensembl_ids: &Array1<VarLenUnicode>,
+    expected_features: &phf::Set<&'static str>,
+) -> Result<(), Error> {
+    let err = Err(Error::UnexpectedFeatureSet {
+        detail: "the set of features in the dataset must be the exact same as the unfilterd features of a cellranger output",
+    });
+    if ensembl_ids.len() != expected_features.len() {
+        return err;
+    }
+
+    let mut seen = HashSet::with_capacity(ensembl_ids.len());
+
+    for id in ensembl_ids {
+        if !seen.insert(id) {
+            return err;
+        }
+
+        if !expected_features.contains(id) {
+            return err;
+        }
+    }
+
+    Ok(())
+}
 
 // Human Ensembl IDs are 15 characters while mouse Ensembl IDs are 18
 pub(crate) type EnsemblId = FixedAscii<18>;
@@ -55,9 +104,27 @@ pub(crate) type FeatureTypes = Array1<FeatureType>;
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct Features {
-    pub(crate) id: EnsemblIds,
-    pub(crate) name: GeneNames,
-    pub(crate) feature_type: FeatureTypes,
+    ensembl_ids: EnsemblIds,
+    gene_names: GeneNames,
+    feature_types: FeatureTypes,
+}
+
+impl Features {
+    pub(super) fn ensembl_ids(&self) -> &EnsemblIds {
+        &self.ensembl_ids
+    }
+
+    pub(super) fn gene_names(&self) -> &GeneNames {
+        &self.gene_names
+    }
+
+    pub(super) fn feature_types(&self) -> &FeatureTypes {
+        &self.feature_types
+    }
+
+    pub(super) fn len(&self) -> usize {
+        self.ensembl_ids.len()
+    }
 }
 
 #[derive(Clone, thiserror::Error, Serialize, Debug)]
@@ -65,4 +132,14 @@ pub(crate) struct Features {
 pub enum Error {
     #[error("incomplete features: {reason}")]
     IncompleteFeatures { reason: String },
+    #[error("unexpected feature-set")]
+    UnexpectedFeatureSet { detail: &'static str },
+    #[error(
+        "ensembl_ids, gene_names, and feature_types should have the same length - found ({ensembl_ids_len}, {gene_names_len}, {feature_types_len})"
+    )]
+    InvalidShapes {
+        ensembl_ids_len: usize,
+        gene_names_len: usize,
+        feature_types_len: usize,
+    },
 }

@@ -1,8 +1,4 @@
 mod flex_refdata_gex_grch38_2020_a;
-mod flex_refdata_gex_grch38_2024_a;
-mod flex_refdata_gex_grcm39_2024_a;
 mod flex_refdata_gex_mm10_2020_a;
 mod refdata_gex_grch38_2020_a;
-mod refdata_gex_grch38_2024_a;
-mod refdata_gex_grcm39_2024_a;
 mod refdata_gex_mm10_2020_a;

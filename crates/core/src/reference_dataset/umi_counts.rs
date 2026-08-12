@@ -12,7 +12,7 @@ use crate::reference_dataset::{
 mod encoding_type;
 mod matrix;
 
-pub(crate) fn read_umi_counts_from_h5ad(file: &File) -> Result<RawCscUmiCounts, Error> {
+pub(super) fn read_umi_counts_from_h5ad(file: &File) -> Result<RawCscUmiCounts, Error> {
     let encoding_type: VarLenUnicode =
         read_attribute(&read_container(file, "X")?, "encoding-type")?;
 
