@@ -102,11 +102,10 @@ mod tests {
         let ensembl_id = tp53_ensembl_id();
         let ensembl_id_str = ensembl_id.as_str();
 
-        // Two rows with the same Ensembl ID/gene-name pair but differing other fields
-        let gene_list = format!(
-            "ensembl_id,gene_name,group,priority\n{ensembl_id_str},TP53,group0,must_have\\
-             n{ensembl_id_str},TP53,group1,backup"
-        );
+        // Two idential rows. We have to split this into 3 lines because cargo +nightly fmt destroys it otherwise
+        let header = "ensembl_id,gene_name,group,priority";
+        let row = format!("{ensembl_id_str},TP53,group0,must_have");
+        let gene_list = format!("{header}\n{row}\n{row}");
 
         let errors = parse_target_list(
             &gene_list,

@@ -103,9 +103,14 @@ mod tests {
         // The last one apparently has some compression applied to it because of
         // scanpy.write's default behavior. It's really nice that scanpy's default
         // behavior differs from anndata's default behavior :)
-        let files = ["csr_adata", "csc_adata", "dense_adata", "10k_Human_DTC_Melanoma_3p_gemx_10k_Human_DTC_Melanoma_3p_gemx_count_sample_filtered_feature_bc_matrix"]
-            .map(|fname| format!("test-data/{fname}.h5ad"))
-            .map(|path| File::open(path).unwrap());
+        let files = [
+            "csr_adata",
+            "csc_adata",
+            "dense_adata",
+            "1k_mouse_kidney_CNIK_3pv3_filtered_feature_bc_matrix",
+        ]
+        .map(|fname| format!("test-data/{fname}.h5ad"))
+        .map(|path| File::open(path).unwrap());
 
         let mut all_counts = Vec::with_capacity(files.len());
 
