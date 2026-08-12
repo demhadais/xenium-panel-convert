@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use crate::{
     Species,
+    common::ErrorVecExt,
     reference_dataset::{
         columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
         h5_util::write_dataset_to_h5_group,
@@ -39,37 +40,18 @@ pub fn read_reference_dataset(
         }]
     })?;
 
-    let counts = match read_umi_counts_from_h5ad(&file) {
-        Ok(c) => Some(c),
-        Err(error) => {
-            errors.push(Error::UmiCounts { error });
-            None
-        }
-    };
+    let counts = read_umi_counts_from_h5ad(&file).map_or_else(|err| errors.push_err(err), Some);
 
-    let barcodes = match read_cell_barcodes_from_h5ad(&file, cell_barcode_col) {
-        Ok(b) => Some(b),
-        Err(error) => {
-            errors.push(Error::Obs { error });
-            None
-        }
-    };
+    let counts = read_umi_counts_from_h5ad(&file).map_or_else(|err| errors.push_err(err), Some);
 
-    let cell_annotations = match read_cell_annotations_from_h5ad(&file, cell_annotation_col) {
-        Ok(a) => Some(a),
-        Err(error) => {
-            errors.push(Error::Obs { error });
-            None
-        }
-    };
+    let barcodes = read_cell_barcodes_from_h5ad(&file, cell_barcode_col)
+        .map_or_else(|err| errors.push_err(err), Some);
 
-    let features = match read_features_from_h5ad(&file, ensembl_id_col, gene_name_col) {
-        Ok(f) => Some(f),
-        Err(error) => {
-            errors.push(Error::Var { error });
-            None
-        }
-    };
+    let cell_annotations = read_cell_annotations_from_h5ad(&file, cell_annotation_col)
+        .map_or_else(|err| errors.push_err(err), Some);
+
+    let features = read_features_from_h5ad(&file, ensembl_id_col, gene_name_col)
+        .map_or_else(|err| errors.push_err(err), Some);
 
     let (Some(counts), Some(barcodes), Some(cell_annotations), Some(features)) =
         (counts, barcodes, cell_annotations, features)
@@ -194,6 +176,17 @@ pub enum Error {
     InvalidOutputPath { path: String, reason: String },
     #[error("something went wrong writing H5 object: {reason}")]
     WriteH5Object { path: String, reason: String },
+}
+
+impl<E> ErrorVecExt<E> for Vec<Error>
+where
+    E: Into<Error>,
+{
+    fn push_err<T>(&mut self, err: E) -> Option<T> {
+        self.push(err.into());
+
+        None
+    }
 }
 
 impl Error {

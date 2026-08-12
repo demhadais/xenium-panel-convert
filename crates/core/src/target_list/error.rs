@@ -1,8 +1,11 @@
 use serde::Serialize;
 
-use crate::target_list::{
-    chemistry::GeneName,
-    target::{UnvalidatedTarget, ValidGene},
+use crate::{
+    common::ErrorVecExt,
+    target_list::{
+        chemistry::GeneName,
+        target::{UnvalidatedTarget, ValidGene},
+    },
 };
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
@@ -55,5 +58,13 @@ impl<'a> From<&'a csv::Error> for ErrorInner {
         Self::MalformedCsv {
             reason: err.to_string(),
         }
+    }
+}
+
+impl ErrorVecExt<ErrorInner> for Vec<ErrorInner> {
+    fn push_err<T>(&mut self, err: ErrorInner) -> Option<T> {
+        self.push(err);
+
+        None
     }
 }

@@ -3,9 +3,12 @@ use std::str::FromStr;
 use csv::StringRecord;
 use serde::{Deserialize, Serialize};
 
-use crate::target_list::{
-    ErrorInner,
-    chemistry::{EnsemblId, GeneName, UnvalidatedEnsemblId, UnvalidatedGeneName},
+use crate::{
+    common::ErrorVecExt,
+    target_list::{
+        ErrorInner,
+        chemistry::{EnsemblId, GeneName, UnvalidatedEnsemblId, UnvalidatedGeneName},
+    },
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -45,11 +48,11 @@ impl UnvalidatedTarget {
             errors.push(ErrorInner::MissingField { fieldname: "group" });
         }
 
-        let priority = parse_priority_field(priority.as_deref())
-            .map_or_else(|e| push_error(&mut errors, e), Some);
+        let priority =
+            parse_priority_field(priority.as_deref()).map_or_else(|err| errors.push_err(err), Some);
 
         let valid_gene = ValidGene::from_unvalidated(gene, ensembl_id_to_gene)
-            .map_or_else(|e| push_error(&mut errors, e), Some);
+            .map_or_else(|err| errors.push_err(err), Some);
 
         match (valid_gene, group, priority) {
             (Some(valid_gene), Some(group), Some(priority)) => Ok(ValidTarget {
@@ -60,12 +63,6 @@ impl UnvalidatedTarget {
             _ => Err(errors),
         }
     }
-}
-
-fn push_error<T>(errors: &mut Vec<ErrorInner>, err: ErrorInner) -> Option<T> {
-    errors.push(err);
-
-    None
 }
 
 fn parse_priority_field(s: Option<&str>) -> Result<Priority, ErrorInner> {
