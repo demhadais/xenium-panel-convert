@@ -8,7 +8,7 @@ pub(crate) use target::{Priority as TargetPriority, ValidGene};
 pub use xenium_panel_designer::XeniumPanelDesignerGeneList;
 
 use crate::target_list::{
-    csv_util::{extract_record, read_csv_trimmed, rename_fields},
+    csv_util::{read_csv_trimmed, rename_fields},
     target::UnvalidatedTarget,
 };
 
@@ -18,7 +18,6 @@ mod error;
 mod target;
 mod xenium_panel_designer;
 
-#[allow(clippy::missing_errors_doc)]
 pub fn parse_target_list(
     target_list: &str,
     field_aliases: &HashMap<&str, &str>,
@@ -45,23 +44,40 @@ pub fn parse_target_list(
     let mut seen_genes = HashSet::with_capacity(N_GENES);
 
     for record in reader.records() {
-        let Some(record) = extract_record(record.as_ref(), &mut errors) else {
-            continue;
+        let record = match record {
+            Ok(record) => record,
+            Err(err) => {
+                errors.push(Error {
+                    line_number: None,
+                    submitted_target: None,
+                    errors: vec![err.into()],
+                });
+
+                continue;
+            }
         };
 
         let line_number = record.position().map(csv::Position::line);
+        let submitted_target = UnvalidatedTarget::from_record(&record, &fieldnames);
 
-        let submitted_target = UnvalidatedTarget::from_record(record, &fieldnames);
-        let validation_result = submitted_target.validate(ensembl_id_to_gene);
+        let row_errors = match submitted_target.validate(ensembl_id_to_gene) {
+            Ok(valid_target) => {
+                if seen_genes.insert(valid_target.gene) {
+                    valid_targets.push(valid_target);
 
-        push_validation_result(
+                    continue;
+                }
+
+                vec![ErrorInner::DuplicateGene]
+            }
+            Err(row_errors) => row_errors,
+        };
+
+        errors.push(Error {
             line_number,
-            submitted_target,
-            validation_result,
-            &mut seen_genes,
-            &mut valid_targets,
-            &mut errors,
-        );
+            submitted_target: Some(submitted_target),
+            errors: row_errors,
+        });
     }
 
     if !errors.is_empty() {
@@ -69,38 +85,6 @@ pub fn parse_target_list(
     }
 
     Ok(valid_targets)
-}
-
-fn push_validation_result(
-    line_number: Option<u64>,
-    submitted_target: UnvalidatedTarget,
-    validation_result: Result<ValidTarget, Vec<ErrorInner>>,
-    seen_genes: &mut HashSet<ValidGene>,
-    valid_targets: &mut Vec<ValidTarget>,
-    errors: &mut Vec<Error>,
-) {
-    let submitted_target = Some(submitted_target);
-
-    match validation_result {
-        Ok(vt) => {
-            let is_new = seen_genes.insert(vt.gene);
-
-            if is_new {
-                valid_targets.push(vt);
-            } else {
-                errors.push(Error {
-                    line_number,
-                    submitted_target,
-                    errors: vec![ErrorInner::DuplicateGene],
-                });
-            }
-        }
-        Err(errs) => errors.push(Error {
-            line_number,
-            submitted_target,
-            errors: errs,
-        }),
-    }
 }
 
 #[cfg(test)]
@@ -120,8 +104,8 @@ mod tests {
 
         // Two rows with the same Ensembl ID/gene-name pair but differing other fields
         let gene_list = format!(
-            "ensembl_id,gene_name,group,priority\n{ensembl_id_str},TP53,group0,must_have\\
-             n{ensembl_id_str},TP53,group1,backup"
+            "ensembl_id,gene_name,group,priority\n{ensembl_id_str},TP53,group0,must_have\
+             \n{ensembl_id_str},TP53,group1,backup"
         );
 
         let errors = parse_target_list(
@@ -131,7 +115,7 @@ mod tests {
         )
         .unwrap_err();
 
-        assert_eq!(errors.len(), 1, "did not find exactly 1 error: {errors:?}");
+        assert_eq!(errors.len(), 1, "did not find exactly 1 error");
         assert_eq!(errors[0].errors, [ErrorInner::DuplicateGene]);
     }
 

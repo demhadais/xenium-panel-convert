@@ -42,24 +42,6 @@ pub(super) fn rename_fields(
     )
 }
 
-pub(super) fn extract_record<'a>(
-    record: Result<&'a StringRecord, &'a csv::Error>,
-    errors: &mut Vec<Error>,
-) -> Option<&'a StringRecord> {
-    match record {
-        Ok(r) => Some(r),
-        Err(err) => {
-            errors.push(Error {
-                line_number: None,
-                submitted_target: None,
-                errors: vec![err.into()],
-            });
-
-            None
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::target_list::{Error, ErrorInner, csv_util::rename_fields};

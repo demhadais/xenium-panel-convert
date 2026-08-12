@@ -35,25 +35,43 @@ fn main() -> anyhow::Result<()> {
 
 #[derive(clap::Parser)]
 enum Cli {
-    /// Convert a target list to a format suitable for the Xenium Panel Designer.
+    /// Convert a target-list to a format suitable for the Xenium Panel
+    /// Designer.
     ///
-    /// The target-list must be a CSV-file with the header: "ensembl_id,gene_name,group,priority". The column "priority" must be one of "must_have", "desired", or "backup". The file will be converted to a sorted CSV-file suitable for copy-pasting into the Xenium Panel Designer. If errors are encountered, they are collected and written to <OUTPUT_DIR>/target-list-errors.json.
+    /// The target-list must be a CSV-file with the header:
+    /// "ensembl_id,gene_name,group,priority". The column "priority" must be one
+    /// of "must_have", "desired", or "backup". A "cleaned" version of the file
+    /// will be saved at <OUTPUT_DIR>/target-list.csv, and the version for the
+    /// panel designer will be saved at
+    /// <OUTPUT_DIR>/xenium-panel-designer-target-list.csv. If errors occur,
+    /// they are collected and written to <OUTPUT_DIR>/target-list-errors.json.
     Targets {
         #[clap(flatten)]
         common: CommonOptions,
         #[clap(flatten)]
         options: TargetListCliOptions,
     },
-    /// Convert scanpy-annotated single-cell RNA sequencing datasets to a format suitable for the Xenium Panel Designer.
+    /// Convert scanpy-annotated single-cell RNA sequencing datasets to a format
+    /// suitable for the Xenium Panel Designer.
     ///
-    /// Each annotated dataset (generated with scanpy, typically with the file-extention .h5ad) is converted to a directory containing a matrix.h5 and annotations.csv. This directory can be archived, zipped, and uploaded directly to the panel designer as a reference dataset. If errors are encountered, they are written to <OUTPUT_DIR>/<DATASET_PATH>-errors.json
+    /// Each annotated dataset (h5ad files generated with scanpy) is converted
+    /// to a directory containing a matrix.h5 and annotations.csv. This
+    /// directory can be fed to tar to create a compressed archive and uploaded
+    /// directly to the panel designer as a reference dataset. If errors occur,
+    /// they are collected and written to
+    /// <OUTPUT_DIR>/<DATASET_PATH>-errors.json
     References {
         #[clap(flatten)]
         common: CommonOptions,
         #[clap(flatten)]
         options: ReferenceDatasetCliOptions,
     },
-    /// Validate both the target-list and the reference datasets and convert both to the appropriate formats for the Xenium Panel Designer
+    /// Convert both a target-list and reference datasets to formats suitable
+    /// for the Xenium Panel Designer.
+    ///
+    /// This is the equivalent of running both commands at once with additional
+    /// checks that are only possible with both a target-list and a reference
+    /// dataset. Namely
     Submission {
         #[clap(flatten)]
         common: CommonOptions,

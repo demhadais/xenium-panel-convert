@@ -1,4 +1,3 @@
-#![allow(clippy::unreadable_literal)]
 use serde::{Deserialize, Serialize};
 
 mod xenium_prime_human;

@@ -125,8 +125,8 @@ impl ReferenceDatasetSpecification {
                 (0, None) => ("path", kv_pair),
                 (_, None) => {
                     bail!(
-                        "reference dataset specification must be provided like one of the following \
-                         (mixing allowed):\n{EXAMPLE}"
+                        "reference dataset specification must be provided like one of the \
+                         following (mixing allowed):\n{EXAMPLE}"
                     );
                 }
             };

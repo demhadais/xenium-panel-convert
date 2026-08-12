@@ -36,7 +36,6 @@ pub(crate) fn read_features_from_h5ad(
     })
 }
 
-// Placeholder for the planned wrong-reference-genome check (see docs/GOALS.md)
 #[allow(dead_code)]
 fn check_genes_are_from_correct_genome() {}
 
