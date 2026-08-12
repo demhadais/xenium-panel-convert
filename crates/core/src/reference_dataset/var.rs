@@ -67,7 +67,8 @@ fn check_feature_set(
     expected_features: &phf::Set<&'static str>,
 ) -> Result<(), Error> {
     let err = Err(Error::UnexpectedFeatureSet {
-        detail: "the set of features in the dataset must be the exact same as the unfilterd features of a cellranger output",
+        detail: "the set of features in the dataset must be the exact same as the unfilterd \
+                 features of a cellranger output",
     });
     if ensembl_ids.len() != expected_features.len() {
         return err;
@@ -135,7 +136,8 @@ pub enum Error {
     #[error("unexpected feature-set")]
     UnexpectedFeatureSet { detail: &'static str },
     #[error(
-        "ensembl_ids, gene_names, and feature_types should have the same length - found ({ensembl_ids_len}, {gene_names_len}, {feature_types_len})"
+        "ensembl_ids, gene_names, and feature_types should have the same length - found \
+         ({ensembl_ids_len}, {gene_names_len}, {feature_types_len})"
     )]
     InvalidShapes {
         ensembl_ids_len: usize,
