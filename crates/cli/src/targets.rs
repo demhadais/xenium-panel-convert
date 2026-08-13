@@ -19,36 +19,19 @@ use crate::error::write_error_report;
 pub fn convert_target_list(
     TargetListCliOptions {
         targets_path,
-        field_alias_path,
-        field_aliases,
+        field_alias_file,
+        field_aliases: field_aliases_from_cli,
+        species,
         chemistry,
     }: &TargetListCliOptions,
-    species: Species,
     output_dir: &Utf8Path,
 ) -> anyhow::Result<()> {
     let target_list = fs::read_to_string(targets_path)
         .with_context(|| format!("failed to read target-list from {targets_path}"))?;
 
-    let field_alias_file_contents = field_alias_path
-        .as_ref()
-        .map(fs::read)
-        .transpose()
-        .with_context(|| {
-            if let Some(field_alias_path) = field_alias_path {
-                format!("failed to read field aliases from {field_alias_path}")
-            } else {
-                "failed to read field aliases".to_owned()
-            }
-        })?;
+    let field_aliases_from_file = read_field_aliases_from_file(field_alias_file.as_deref())?;
 
-    let field_aliases = combine_field_aliases(field_alias_file_contents.as_deref(), field_aliases)
-        .with_context(|| {
-            if let Some(path) = field_alias_path {
-                format!("failed to read field aliases from {path}")
-            } else {
-                "failed to construct field aliases".to_owned()
-            }
-        })?;
+    let field_aliases = combine_field_aliases(&field_aliases_from_file, field_aliases_from_cli)?;
 
     let result = match (species, chemistry) {
         (Species::HomoSapiens, Chemistry::V1) => parse_target_list(
@@ -100,10 +83,12 @@ fn write_targets_for_xenium_panel_designer(
 pub struct TargetListCliOptions {
     #[clap(long, short)]
     targets_path: Utf8PathBuf,
-    #[clap(long, short = 'p')]
-    field_alias_path: Option<Utf8PathBuf>,
+    #[clap(long, short = 'f')]
+    field_alias_file: Option<Utf8PathBuf>,
     #[clap(long, short = 'a', value_parser = parse_field_aliases)]
     field_aliases: Vec<(String, String)>,
+    #[clap(long, short)]
+    species: Species,
     #[clap(long, short)]
     chemistry: Chemistry,
 }
@@ -114,24 +99,22 @@ fn parse_field_aliases(s: &str) -> anyhow::Result<(String, String)> {
         .ok_or_else(|| anyhow!("field aliases must be specified as '<ALIAS>=<FIELD>'"))
 }
 
-fn combine_field_aliases<'a>(
-    field_alias_file_contents: Option<&'a [u8]>,
-    field_aliases: &'a [(String, String)],
-) -> anyhow::Result<HashMap<&'a str, &'a str>> {
-    let mut field_aliases: HashMap<_, _> = field_aliases
-        .iter()
-        .map(|(s1, s2)| (s1.as_str(), s2.as_str()))
-        .collect();
-
-    let Some(aliases_from_file) = field_alias_file_contents else {
-        return Ok(field_aliases);
+fn read_field_aliases_from_file(path: Option<&Utf8Path>) -> anyhow::Result<Vec<u8>> {
+    let Some(path) = path else {
+        return Ok(Vec::new());
     };
 
-    let aliases_from_file: HashMap<_, _> = toml::from_slice(aliases_from_file)?;
+    fs::read(path).with_context(|| format!("failed to read file {path}"))
+}
 
-    for (alias, field) in aliases_from_file {
-        // We want field-aliases from the CLI to take precedence
-        field_aliases.entry(alias).or_insert(field);
+fn combine_field_aliases<'a>(
+    field_alias_file_contents: &'a [u8],
+    field_aliases_from_cli: &'a [(String, String)],
+) -> anyhow::Result<HashMap<&'a str, &'a str>> {
+    let mut field_aliases: HashMap<&str, &str> = toml::from_slice(field_alias_file_contents)?;
+
+    for (alias, field) in field_aliases_from_cli {
+        field_aliases.insert(alias, field);
     }
 
     Ok(field_aliases)
@@ -150,8 +133,7 @@ mod tests {
             .map(|alias_field| (alias_field[0].to_owned(), alias_field[1].to_owned()))
             .collect();
 
-        let field_aliases =
-            combine_field_aliases(Some(br#"alias1 = "field2""#), &field_aliases).unwrap();
+        let field_aliases = combine_field_aliases(br#"alias1 = "field2""#, &field_aliases).unwrap();
 
         assert_eq!(
             field_aliases,

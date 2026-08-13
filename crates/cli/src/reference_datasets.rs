@@ -1,34 +1,32 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
-use anyhow::{anyhow, bail, ensure};
+use anyhow::{Context, anyhow, bail, ensure};
 use camino::{Utf8Path, Utf8PathBuf};
 use serde::Serialize;
-use serde_json::error::Category::Data;
-use xenium_panel_convert_core::{
-    Species,
-    reference_dataset::{
-        self,
-        columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
-        read_reference_dataset,
-    },
+use xenium_panel_convert_core::reference_dataset::{
+    self,
+    columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
+    read_reference_dataset,
+    transcriptomes::Transcriptome,
 };
 
 use crate::error::write_error_report;
 
 pub fn convert_reference_datasets(
-    ReferenceDatasetCliOptions {
-        reference: reference_datasets,
-    }: &ReferenceDatasetCliOptions,
-    species: Species,
+    ReferenceDatasetCliOptions { reference_datasets }: &ReferenceDatasetCliOptions,
     output_dir: &Utf8Path,
 ) -> anyhow::Result<()> {
-    for ReferenceDatasetSpecification {
+    for ReferenceDatasetSpec {
         path,
         cell_barcode_col,
         cell_annotation_col,
         ensembl_id_col,
         gene_name_col,
-        rename: _,
+        transcriptome,
+        rename,
     } in reference_datasets
     {
         match read_reference_dataset(
@@ -37,7 +35,7 @@ pub fn convert_reference_datasets(
             cell_annotation_col,
             ensembl_id_col,
             gene_name_col,
-            species,
+            *transcriptome,
         ) {
             Ok(ds) => {
                 todo!()
@@ -68,36 +66,48 @@ struct DatasetErrors {
 }
 
 #[derive(Clone, Debug)]
-struct ReferenceDatasetSpecification {
+struct ReferenceDatasetSpec {
     path: Utf8PathBuf,
     cell_barcode_col: CellBarcodeCol,
     cell_annotation_col: CellAnnotationCol,
     ensembl_id_col: EnsemblIdCol,
     gene_name_col: GeneNameCol,
+    transcriptome: Transcriptome,
     rename: Option<Utf8PathBuf>,
 }
 
-impl ReferenceDatasetSpecification {
+impl ReferenceDatasetSpec {
     fn parse_commandline(s: &str) -> anyhow::Result<Self> {
-        const EXAMPLE: &str = "xp-prep --reference \
-                               path=matrix.h5ad,barcode_col=barcodes,annotation_col=annotations,\
-                               ensembl_id_col=gene_ids\nxp-prep --r \
-                               matrix.h5ad,b=barcodes,a=annotations,e=gene_ids";
+        const EXAMPLE: &str = "path=matrix.h5ad,barcode-col=barcodes,annotation-col=annotations,ensembl-id-col=gene_ids\nmatrix.h5ad,b=barcodes,a=annotations,e=gene_ids";
 
-        fn get_spec_value_default<'a, T: Default + From<&'a str>>(
+        fn get_spec_value_default<'a, T: Default + FromStr>(
             spec: &'a HashMap<&str, &str>,
             key: &str,
-        ) -> T {
-            spec.get(key).map(|v| T::from(*v)).unwrap_or_default()
+        ) -> anyhow::Result<T>
+        where
+            Result<T, T::Err>: Context<T, T::Err>,
+        {
+            let Some(val) = spec.get(key) else {
+                return Ok(T::default());
+            };
+
+            T::from_str(*val)
+                .with_context(|| format!("failed to parse value '{val}' for key '{key}'"))
         }
 
-        fn get_spec_value<'a, T: From<&'a str>>(
+        fn get_spec_value<'a, T: FromStr>(
             spec: &'a HashMap<&str, &str>,
             key: &str,
-        ) -> anyhow::Result<T> {
-            spec.get(key)
-                .map(|v| T::from(*v))
-                .ok_or_else(|| anyhow!("key '{key}' is required"))
+        ) -> anyhow::Result<T>
+        where
+            Result<T, T::Err>: Context<T, T::Err>,
+        {
+            let val = spec
+                .get(key)
+                .ok_or_else(|| anyhow!("key '{key}' is required"))?;
+
+            T::from_str(*val)
+                .with_context(|| format!("failed to parse value '{val}' for key '{key}'"))
         }
 
         let key_aliases: HashMap<_, _> = [
@@ -106,6 +116,8 @@ impl ReferenceDatasetSpecification {
             ("a", "annotation-col"),
             ("e", "ensembl-id-col"),
             ("g", "gene-name-col"),
+            ("t", "transcriptome"),
+            ("f", "flex"),
             ("r", "rename"),
         ]
         .clone()
@@ -126,7 +138,7 @@ impl ReferenceDatasetSpecification {
                 (_, None) => {
                     bail!(
                         "reference dataset specification must be provided like one of the \
-                         following (mixing allowed):\n{EXAMPLE}"
+                         following (mixing aliases and full-names is allowed):\n{EXAMPLE}"
                     );
                 }
             };
@@ -146,10 +158,14 @@ impl ReferenceDatasetSpecification {
 
         Ok(Self {
             path: get_spec_value(&spec, "path")?,
-            cell_barcode_col: get_spec_value_default(&spec, "barcode_col"),
-            cell_annotation_col: get_spec_value(&spec, "annotation_col")?,
-            ensembl_id_col: get_spec_value_default(&spec, "ensembl_id_col"),
-            gene_name_col: get_spec_value_default(&spec, "gene_name_col"),
+            cell_barcode_col: get_spec_value_default(&spec, "barcode-col")?,
+            cell_annotation_col: get_spec_value(&spec, "annotation-col")?,
+            ensembl_id_col: get_spec_value_default(&spec, "ensembl-id-col")?,
+            gene_name_col: get_spec_value_default(&spec, "gene-name-col")?,
+            transcriptome: Transcriptome {
+                inner: get_spec_value(&spec, "transcriptome")?,
+                flex: get_spec_value_default(&spec, "flex")?,
+            },
             rename: get_spec_value(&spec, "rename").ok(),
         })
     }
@@ -157,6 +173,6 @@ impl ReferenceDatasetSpecification {
 
 #[derive(Clone, Debug, clap::Args)]
 pub struct ReferenceDatasetCliOptions {
-    #[clap(value_parser = ReferenceDatasetSpecification::parse_commandline)]
-    reference: Vec<ReferenceDatasetSpecification>,
+    #[clap(value_parser = ReferenceDatasetSpec::parse_commandline)]
+    reference_datasets: Vec<ReferenceDatasetSpec>,
 }

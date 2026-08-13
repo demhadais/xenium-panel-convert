@@ -12,17 +12,18 @@ use crate::{
         h5_util::write_dataset_to_h5_group,
         obs::{read_cell_annotations_from_h5ad, read_cell_barcodes_from_h5ad},
         pseudo_anndata::PseudoAnndata,
+        transcriptomes::Transcriptome,
         umi_counts::read_umi_counts_from_h5ad,
         var::{Features, read_features_from_h5ad},
     },
 };
 
 pub mod columns;
-pub mod feature_sets;
 pub mod h5_util;
 pub mod obs;
 mod pseudo_anndata;
 pub mod specification;
+pub mod transcriptomes;
 pub mod umi_counts;
 pub mod var;
 
@@ -32,7 +33,7 @@ pub fn read_reference_dataset(
     cell_annotation_col: &CellAnnotationCol,
     ensembl_id_col: &EnsemblIdCol,
     gene_name_col: &GeneNameCol,
-    species: Species,
+    transcriptome: Transcriptome,
 ) -> Result<PseudoAnndata, Vec<Error>> {
     let mut errors = Vec::new();
 
@@ -200,6 +201,7 @@ mod tests {
         reference_dataset::{
             h5_util::read_1d_dataset,
             read_reference_dataset,
+            transcriptomes::{Transcriptome, TranscriptomeInner},
             var::{EnsemblId, GeneName},
         },
     };
@@ -223,7 +225,10 @@ mod tests {
                 &"annotation".into(),
                 &"ensembl_id".into(),
                 &"gene_name".into(),
-                Species::HomoSapiens,
+                Transcriptome {
+                    inner: TranscriptomeInner::Grch382020A,
+                    flex: false,
+                },
             )
             .map_err(|e| e[0].clone())
             .context(format!("failed to read dataset from {filename}"))
@@ -252,7 +257,10 @@ mod tests {
             &"annotation".into(),
             &"gene_ids".into(),
             &"gene_name".into(),
-            Species::HomoSapiens,
+            Transcriptome {
+                inner: TranscriptomeInner::Grch382020A,
+                flex: false,
+            },
         )
         .map_err(|e| e[0].clone())
         .context(format!("failed to validate {filename}"))

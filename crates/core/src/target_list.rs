@@ -102,7 +102,8 @@ mod tests {
         let ensembl_id = tp53_ensembl_id();
         let ensembl_id_str = ensembl_id.as_str();
 
-        // Two idential rows. We have to split this into 3 lines because cargo +nightly fmt destroys it otherwise
+        // Two idential rows. We have to split this into 3 lines because cargo +nightly
+        // fmt destroys it otherwise
         let header = "ensembl_id,gene_name,group,priority";
         let row = format!("{ensembl_id_str},TP53,group0,must_have");
         let gene_list = format!("{header}\n{row}\n{row}");
