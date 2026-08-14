@@ -1,7 +1,11 @@
 use std::str::FromStr;
 
-use crate::xenium_panel_allowed_genes::write_gene_maps;
+use crate::{
+    complete_feature_sets::write_complete_feature_sets, xenium_panel_allowed_genes::write_gene_maps,
+};
 
+#[path = "build/common.rs"]
+mod common;
 #[path = "build/complete_feature_sets.rs"]
 mod complete_feature_sets;
 #[path = "build/xenium_panel_allowed_genes.rs"]
@@ -9,13 +13,17 @@ mod xenium_panel_allowed_genes;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    if option_env!("BUILD_XP_CONVERT_GENE_MAPS")
-        .map(bool::from_str)
-        .transpose()?
-        .is_some_and(|build| build)
-    {
+    if is_true(option_env!("BUILD_XP_CONVERT_GENE_MAPS"))? {
         write_gene_maps().await?;
     }
 
+    if is_true(option_env!("BUILD_XP_CONVERT_FEATURE_SETS"))? {
+        write_complete_feature_sets()?;
+    }
+
     Ok(())
+}
+
+fn is_true(env_var: Option<&'static str>) -> anyhow::Result<bool> {
+    Ok(env_var.map(bool::from_str).transpose()?.is_some_and(|v| v))
 }

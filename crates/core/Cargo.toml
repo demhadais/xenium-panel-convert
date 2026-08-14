@@ -31,6 +31,8 @@ csv.workspace = true
 futures.workspace = true
 phf_codegen.workspace = true
 bytes.workspace = true
+hdf5-metno.workspace = true
+
 
 [features]
 clap = ["dep:clap"]

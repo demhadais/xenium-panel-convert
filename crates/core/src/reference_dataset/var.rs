@@ -16,7 +16,7 @@ pub(super) fn read_features_from_h5ad(
     file: &File,
     ensembl_id_col: &EnsemblIdCol,
     gene_name_col: &GeneNameCol,
-    expected_features: &phf::Set<&str>,
+    expected_features: &phf::Map<&str, &str>,
 ) -> Result<Features, Error> {
     let features = [
         ensembl_id_col.as_str(),
@@ -37,7 +37,7 @@ pub(super) fn read_features_from_h5ad(
 
     check_feature_array_lens(&ensembl_ids, &gene_names, &feature_types)?;
 
-    check_feature_set(&ensembl_ids, expected_features)?;
+    check_feature_set(&ensembl_ids, &gene_names, expected_features)?;
 
     Ok(Features {
         ensembl_ids: ensembl_ids.mapv_into_any(|s| to_ascii(&s)),
@@ -64,7 +64,8 @@ fn check_feature_array_lens(
 
 fn check_feature_set(
     ensembl_ids: &Array1<VarLenUnicode>,
-    expected_features: &phf::Set<&'static str>,
+    gene_names: &Array1<VarLenUnicode>,
+    expected_features: &phf::Map<&str, &str>,
 ) -> Result<(), Error> {
     let err = Err(Error::UnexpectedFeatureSet {
         detail: "the set of features in the dataset must be the exact same as the unfilterd \
@@ -76,12 +77,16 @@ fn check_feature_set(
 
     let mut seen = HashSet::with_capacity(ensembl_ids.len());
 
-    for id in ensembl_ids {
+    for (id, name) in ensembl_ids.iter().zip(gene_names) {
         if !seen.insert(id) {
             return err;
         }
 
-        if !expected_features.contains(id) {
+        let Some(expected_name) = expected_features.get(id) else {
+            return err;
+        };
+
+        if name != *expected_name {
             return err;
         }
     }

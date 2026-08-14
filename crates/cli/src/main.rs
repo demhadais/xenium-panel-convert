@@ -45,7 +45,9 @@ enum Command {
     /// of "must_have", "desired", or "backup". A "cleaned" version of the file
     /// will be saved at <OUTPUT_DIR>/target-list.csv, and the version for the
     /// panel designer will be saved at
-    /// <OUTPUT_DIR>/xenium-panel-designer-target-list.csv. If errors are encountered, they are collected and written to <OUTPUT_DIR>/target-list-errors.json.
+    /// <OUTPUT_DIR>/xenium-panel-designer-target-list.csv. If errors are
+    /// encountered, they are collected and written to
+    /// <OUTPUT_DIR>/target-list-errors.json.
     Targets(TargetListCliOptions),
     /// Convert scanpy-annotated single-cell RNA sequencing datasets to a format
     /// suitable for the Xenium Panel Designer.
@@ -57,9 +59,12 @@ enum Command {
     /// they are collected and written to
     /// <OUTPUT_DIR>/<DATASET_PATH>-errors.json
     References(ReferenceDatasetCliOptions),
-    /// Convert a target-list and reference datasets to formats suitable for the Xenium Panel Designer.
+    /// Convert a target-list and reference datasets to formats suitable for the
+    /// Xenium Panel Designer.
     ///
-    /// This is the equivalent of running both commands at once with the added benefit of ensuring all the genes in the target-list are in the reference datasets.
+    /// This is the equivalent of running both commands at once with the added
+    /// benefit of ensuring the genes in the target-list match the
+    /// transcriptomes against which the reference datasets were aligned.
     Submission {
         #[clap(flatten)]
         targets_options: TargetListCliOptions,

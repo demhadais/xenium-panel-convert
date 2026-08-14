@@ -9,8 +9,8 @@ use serde::Serialize;
 use xenium_panel_convert_core::reference_dataset::{
     self,
     columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
+    feature_set::FeatureSet,
     read_reference_dataset,
-    transcriptomes::Transcriptome,
 };
 
 use crate::error::write_error_report;
@@ -72,13 +72,15 @@ struct ReferenceDatasetSpec {
     cell_annotation_col: CellAnnotationCol,
     ensembl_id_col: EnsemblIdCol,
     gene_name_col: GeneNameCol,
-    transcriptome: Transcriptome,
+    transcriptome: FeatureSet,
     rename: Option<Utf8PathBuf>,
 }
 
 impl ReferenceDatasetSpec {
     fn parse_commandline(s: &str) -> anyhow::Result<Self> {
-        const EXAMPLE: &str = "path=matrix.h5ad,barcode-col=barcodes,annotation-col=annotations,ensembl-id-col=gene_ids\nmatrix.h5ad,b=barcodes,a=annotations,e=gene_ids";
+        const EXAMPLE: &str = "path=matrix.h5ad,barcode-col=barcodes,annotation-col=annotations,\
+                               ensembl-id-col=gene_ids\nmatrix.h5ad,b=barcodes,a=annotations,\
+                               e=gene_ids";
 
         fn get_spec_value_default<'a, T: Default + FromStr>(
             spec: &'a HashMap<&str, &str>,
@@ -162,10 +164,10 @@ impl ReferenceDatasetSpec {
             cell_annotation_col: get_spec_value(&spec, "annotation-col")?,
             ensembl_id_col: get_spec_value_default(&spec, "ensembl-id-col")?,
             gene_name_col: get_spec_value_default(&spec, "gene-name-col")?,
-            transcriptome: Transcriptome {
-                inner: get_spec_value(&spec, "transcriptome")?,
-                flex: get_spec_value_default(&spec, "flex")?,
-            },
+            transcriptome: FeatureSet::new(
+                get_spec_value(&spec, "transcriptome")?,
+                get_spec_value_default(&spec, "flex")?,
+            ),
             rename: get_spec_value(&spec, "rename").ok(),
         })
     }

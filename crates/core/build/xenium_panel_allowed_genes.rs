@@ -1,13 +1,11 @@
-use std::{
-    fs,
-    io::{self, Write},
-    path::{Path, PathBuf},
-};
+use std::path::PathBuf;
 
 use anyhow::Context;
 use bytes::Bytes;
 use serde::Deserialize;
 use url::Url;
+
+use crate::common::write_map_to_file;
 
 pub(crate) async fn write_gene_maps() -> anyhow::Result<()> {
     let Config {
@@ -108,24 +106,6 @@ fn construct_maps(gene_list: &[Gene]) -> GeneMaps<'_> {
 struct GeneMaps<'a> {
     homo_sapiens: phf_codegen::Map<'a, &'a str>,
     mus_musculus: phf_codegen::Map<'a, &'a str>,
-}
-
-fn write_map_to_file(
-    path: &Path,
-    map_name: &str,
-    map: &phf_codegen::Map<'_, &str>,
-) -> anyhow::Result<()> {
-    let file = fs::File::create(path)
-        .with_context(|| format!("failed to write file {}", path.to_str().unwrap()))?;
-    let mut file_writer = io::BufWriter::new(file);
-
-    writeln!(
-        file_writer,
-        "pub(super) static {map_name}: phf::Map<&'static str, &'static str> = {};",
-        map.build()
-    )?;
-
-    Ok(())
 }
 
 async fn fetch_raw_gene_list(client: &reqwest::Client, url: Url) -> anyhow::Result<Bytes> {

@@ -5,25 +5,24 @@ use ndarray::Array1;
 use serde::Serialize;
 
 use crate::{
-    Species,
     common::ErrorVecExt,
     reference_dataset::{
         columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
+        feature_set::FeatureSet,
         h5_util::write_dataset_to_h5_group,
         obs::{read_cell_annotations_from_h5ad, read_cell_barcodes_from_h5ad},
         pseudo_anndata::PseudoAnndata,
-        transcriptomes::Transcriptome,
         umi_counts::read_umi_counts_from_h5ad,
-        var::{Features, read_features_from_h5ad},
+        var::read_features_from_h5ad,
     },
 };
 
 pub mod columns;
+pub mod feature_set;
 pub mod h5_util;
 pub mod obs;
 mod pseudo_anndata;
 pub mod specification;
-pub mod transcriptomes;
 pub mod umi_counts;
 pub mod var;
 
@@ -33,7 +32,7 @@ pub fn read_reference_dataset(
     cell_annotation_col: &CellAnnotationCol,
     ensembl_id_col: &EnsemblIdCol,
     gene_name_col: &GeneNameCol,
-    transcriptome: Transcriptome,
+    feature_set: FeatureSet,
 ) -> Result<PseudoAnndata, Vec<Error>> {
     let mut errors = Vec::new();
 
@@ -51,8 +50,13 @@ pub fn read_reference_dataset(
     let cell_annotations = read_cell_annotations_from_h5ad(&file, cell_annotation_col)
         .map_or_else(|err| errors.push_err(err), Some);
 
-    let features = read_features_from_h5ad(&file, ensembl_id_col, gene_name_col, todo!())
-        .map_or_else(|err| errors.push_err(err), Some);
+    let features = read_features_from_h5ad(
+        &file,
+        ensembl_id_col,
+        gene_name_col,
+        feature_set.reference_transcriptome(),
+    )
+    .map_or_else(|err| errors.push_err(err), Some);
 
     let (Some(counts), Some(barcodes), Some(cell_annotations), Some(features)) =
         (counts, barcodes, cell_annotations, features)
@@ -196,14 +200,11 @@ mod tests {
     use anyhow::Context;
     use hdf5_metno::types::FixedAscii;
 
-    use crate::{
-        Species,
-        reference_dataset::{
-            h5_util::read_1d_dataset,
-            read_reference_dataset,
-            transcriptomes::{Transcriptome, TranscriptomeInner},
-            var::{EnsemblId, GeneName},
-        },
+    use crate::reference_dataset::{
+        feature_set::{FeatureSet, Transcriptome},
+        h5_util::read_1d_dataset,
+        read_reference_dataset,
+        var::{EnsemblId, GeneName},
     };
 
     #[test]
@@ -225,10 +226,7 @@ mod tests {
                 &"annotation".into(),
                 &"ensembl_id".into(),
                 &"gene_name".into(),
-                Transcriptome {
-                    inner: TranscriptomeInner::Grch382020A,
-                    flex: false,
-                },
+                FeatureSet::new(Transcriptome::Grch382020A, false),
             )
             .map_err(|e| e[0].clone())
             .context(format!("failed to read dataset from {filename}"))
@@ -257,10 +255,7 @@ mod tests {
             &"annotation".into(),
             &"gene_ids".into(),
             &"gene_name".into(),
-            Transcriptome {
-                inner: TranscriptomeInner::Grch382020A,
-                flex: false,
-            },
+            FeatureSet::new(Transcriptome::Grch382020A, false),
         )
         .map_err(|e| e[0].clone())
         .context(format!("failed to validate {filename}"))
