@@ -10,15 +10,17 @@ use xenium_panel_convert_core::reference_dataset::{
     self,
     columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
     feature_set::FeatureSet,
-    read_reference_dataset,
+    read_reference_dataset, write_reference_dataset,
 };
 
-use crate::error::write_error_report;
+use crate::write::write_to_file;
 
 pub fn convert_reference_datasets(
     ReferenceDatasetCliOptions { reference_datasets }: &ReferenceDatasetCliOptions,
     output_dir: &Utf8Path,
 ) -> anyhow::Result<()> {
+    let output_path = |filename: &str| output_dir.join(filename);
+
     for ReferenceDatasetSpec {
         path,
         cell_barcode_col,
@@ -29,6 +31,12 @@ pub fn convert_reference_datasets(
         rename,
     } in reference_datasets
     {
+        let dataset_name = rename
+            .as_deref()
+            .and_then(Utf8Path::file_stem)
+            .or(path.file_stem())
+            .ok_or_else(|| anyhow!("invalid filename: {}", rename.as_ref().unwrap_or(path)))?;
+
         match read_reference_dataset(
             path,
             cell_barcode_col,
@@ -38,20 +46,16 @@ pub fn convert_reference_datasets(
             *transcriptome,
         ) {
             Ok(ds) => {
-                todo!()
+                write_reference_dataset(&output_path(dataset_name), &ds)?;
             }
             Err(errors) => {
-                write_error_report(
-                    &DatasetErrors {
-                        path: path.clone(),
-                        errors,
-                    },
-                    &output_dir.join(
-                        path.file_name()
-                            .map(|s| format!("{s}-errors.json"))
-                            .unwrap(),
-                    ),
-                )?;
+                let errors = DatasetErrors {
+                    path: path.to_owned(),
+                    errors,
+                };
+
+                let error_path = format!("{dataset_name}-errors.json");
+                write_to_file(&errors, &output_path(&error_path))?;
             }
         }
     }

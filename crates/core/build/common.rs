@@ -5,6 +5,17 @@ use std::{
 };
 
 use anyhow::Context;
+use serde::de::DeserializeOwned;
+
+pub(crate) fn parse_gene_list_from_csv<T: DeserializeOwned>(
+    raw_gene_list: &[u8],
+) -> anyhow::Result<Vec<T>> {
+    let mut reader = csv::ReaderBuilder::new()
+        .comment(Some(b'#'))
+        .from_reader(raw_gene_list);
+
+    Ok(reader.deserialize().collect::<Result<_, _>>()?)
+}
 
 pub(crate) fn write_map_to_file(
     path: &Path,

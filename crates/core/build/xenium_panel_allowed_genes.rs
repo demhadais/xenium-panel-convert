@@ -1,36 +1,23 @@
 use std::path::PathBuf;
 
-use anyhow::Context;
-use bytes::Bytes;
 use serde::Deserialize;
-use url::Url;
 
-use crate::common::write_map_to_file;
+use crate::common::{parse_gene_list_from_csv, write_map_to_file};
 
-pub(crate) async fn write_gene_maps() -> anyhow::Result<()> {
-    let Config {
-        xenium_v1_gene_list,
-        xenium_prime_gene_list,
-    } = toml::from_slice(include_bytes!("../genes.toml"))
-        .context("failed to parse config from genes.toml")?;
+static XENIUM_V1_GENE_LIST: &'static [u8] =
+    include_bytes!("../xenium-gene-lists/human_and_mouse_2020-A-ref-yesprobe-genes_v1assay.csv");
 
-    let http_client = reqwest::Client::new();
-    let raw_gene_lists = [xenium_v1_gene_list, xenium_prime_gene_list]
-        .map(|url| fetch_raw_gene_list(&http_client, url));
+static XENIUM_PRIME_GENE_LIST: &'static [u8] =
+    include_bytes!("../xenium-gene-lists/human_and_mouse_genes_xenium_prime-yesprobe-genes.csv");
 
-    let raw_gene_lists = futures::future::try_join_all(raw_gene_lists).await?;
-    let mut gene_lists: Vec<_> = raw_gene_lists
-        .iter()
-        .map(|raw| csv::Reader::from_reader(raw.as_ref()))
-        .collect();
+pub(crate) fn write_gene_maps() -> anyhow::Result<()> {
+    let gene_lists: Vec<_> = [XENIUM_V1_GENE_LIST, XENIUM_PRIME_GENE_LIST]
+        .map(parse_gene_list_from_csv)
+        .into_iter()
+        .collect::<Result<_, _>>()?;
 
-    let gene_lists: Vec<Vec<_>> = gene_lists
-        .iter_mut()
-        .map(|list| list.deserialize().map(|res| res.unwrap()))
-        .map(Iterator::collect)
-        .collect();
+    let gene_maps: Vec<_> = gene_lists.iter().map(|list| construct_maps(list)).collect();
 
-    let gene_lists: Vec<_> = gene_lists.iter().map(|list| construct_maps(list)).collect();
     let [
         GeneMaps {
             homo_sapiens: v1_human,
@@ -40,7 +27,7 @@ pub(crate) async fn write_gene_maps() -> anyhow::Result<()> {
             homo_sapiens: prime_human,
             mus_musculus: prime_mouse,
         },
-    ] = gene_lists.as_array().unwrap();
+    ] = gene_maps.as_array().unwrap();
 
     for (filename, map_name, gene_map) in [
         ("xenium_v1_human.rs", "XENIUM_V1_HUMAN_GENES", v1_human),
@@ -59,20 +46,24 @@ pub(crate) async fn write_gene_maps() -> anyhow::Result<()> {
         write_map_to_file(
             &PathBuf::from(format!("src/target_list/chemistry/{filename}")),
             map_name,
-            gene_map,
+            &gene_map,
         )?;
     }
 
     Ok(())
 }
 
-#[derive(Clone, Debug, Deserialize)]
-struct Config {
-    xenium_v1_gene_list: Url,
-    xenium_prime_gene_list: Url,
+#[derive(Deserialize, Clone)]
+struct Gene {
+    #[serde(rename = "Species")]
+    species: String,
+    #[serde(rename = "Ensembl ID")]
+    ensembl_id: String,
+    #[serde(rename = "Gene symbol")]
+    gene_name: String,
 }
 
-fn construct_maps(gene_list: &[Gene]) -> GeneMaps<'_> {
+fn construct_maps<'a>(gene_list: &'a [Gene]) -> GeneMaps<'a> {
     fn insert_gene<'a>(
         ensembl_id: &'a str,
         gene_symbol: &'a str,
@@ -87,12 +78,12 @@ fn construct_maps(gene_list: &[Gene]) -> GeneMaps<'_> {
     for Gene {
         species,
         ensembl_id,
-        gene_symbol,
+        gene_name,
     } in gene_list
     {
         match species.as_str() {
-            "Homo sapiens" => insert_gene(ensembl_id, gene_symbol, &mut homo_sapiens),
-            "Mus musculus" => insert_gene(ensembl_id, gene_symbol, &mut mus_musculus),
+            "Homo sapiens" => insert_gene(ensembl_id, gene_name, &mut homo_sapiens),
+            "Mus musculus" => insert_gene(ensembl_id, gene_name, &mut mus_musculus),
             s => panic!("species {s} not expected"),
         }
     }
@@ -106,22 +97,4 @@ fn construct_maps(gene_list: &[Gene]) -> GeneMaps<'_> {
 struct GeneMaps<'a> {
     homo_sapiens: phf_codegen::Map<'a, &'a str>,
     mus_musculus: phf_codegen::Map<'a, &'a str>,
-}
-
-async fn fetch_raw_gene_list(client: &reqwest::Client, url: Url) -> anyhow::Result<Bytes> {
-    let response = client.get(url).send().await?;
-
-    let raw = response.bytes().await?;
-
-    Ok(raw)
-}
-
-#[derive(Deserialize)]
-struct Gene {
-    #[serde(rename = "Species")]
-    species: String,
-    #[serde(rename = "Ensembl ID")]
-    ensembl_id: String,
-    #[serde(rename = "Gene symbol")]
-    gene_symbol: String,
 }

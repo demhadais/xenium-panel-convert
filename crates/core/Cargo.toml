@@ -9,6 +9,7 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
+camino.workspace = true
 csv.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -22,15 +23,9 @@ clap = { workspace = true, optional = true }
 
 [build-dependencies]
 serde.workspace = true
-toml.workspace = true
 anyhow.workspace = true
-reqwest.workspace = true
-tokio.workspace = true
-url.workspace = true
 csv.workspace = true
-futures.workspace = true
 phf_codegen.workspace = true
-bytes.workspace = true
 hdf5-metno.workspace = true
 
 

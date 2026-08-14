@@ -9,6 +9,7 @@ use serde::Serialize;
 
 use crate::reference_dataset::{
     columns::{EnsemblIdCol, GeneNameCol},
+    feature_set::FeatureSet,
     h5_util::{read_1d_string_dataset, to_ascii},
 };
 
@@ -16,7 +17,7 @@ pub(super) fn read_features_from_h5ad(
     file: &File,
     ensembl_id_col: &EnsemblIdCol,
     gene_name_col: &GeneNameCol,
-    expected_features: &phf::Map<&str, &str>,
+    expected_feature_set: FeatureSet,
 ) -> Result<Features, Error> {
     let features = [
         ensembl_id_col.as_str(),
@@ -37,7 +38,11 @@ pub(super) fn read_features_from_h5ad(
 
     check_feature_array_lens(&ensembl_ids, &gene_names, &feature_types)?;
 
-    check_feature_set(&ensembl_ids, &gene_names, expected_features)?;
+    check_feature_set(
+        &ensembl_ids,
+        &gene_names,
+        expected_feature_set.genes(ensembl_ids.len()),
+    )?;
 
     Ok(Features {
         ensembl_ids: ensembl_ids.mapv_into_any(|s| to_ascii(&s)),
@@ -65,15 +70,16 @@ fn check_feature_array_lens(
 fn check_feature_set(
     ensembl_ids: &Array1<VarLenUnicode>,
     gene_names: &Array1<VarLenUnicode>,
-    expected_features: &phf::Map<&str, &str>,
+    expected_features: Option<&phf::Map<&str, &str>>,
 ) -> Result<(), Error> {
     let err = Err(Error::UnexpectedFeatureSet {
-        detail: "the set of features in the dataset must be the exact same as the unfilterd \
+        detail: "the set of features in the dataset must be the exact same as the unfiltered \
                  features of a cellranger output",
     });
-    if ensembl_ids.len() != expected_features.len() {
+
+    let Some(expected_features) = expected_features else {
         return err;
-    }
+    };
 
     let mut seen = HashSet::with_capacity(ensembl_ids.len());
 

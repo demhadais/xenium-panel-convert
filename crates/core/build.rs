@@ -11,10 +11,9 @@ mod complete_feature_sets;
 #[path = "build/xenium_panel_allowed_genes.rs"]
 mod xenium_panel_allowed_genes;
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     if is_true(option_env!("BUILD_XP_CONVERT_GENE_MAPS"))? {
-        write_gene_maps().await?;
+        write_gene_maps()?;
     }
 
     if is_true(option_env!("BUILD_XP_CONVERT_FEATURE_SETS"))? {

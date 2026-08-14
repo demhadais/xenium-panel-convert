@@ -1,5 +1,6 @@
 use std::{fs, path::Path};
 
+use camino::Utf8Path;
 use hdf5_metno::{File, types::FixedAscii};
 use ndarray::Array1;
 use serde::Serialize;
@@ -27,7 +28,7 @@ pub mod umi_counts;
 pub mod var;
 
 pub fn read_reference_dataset(
-    path: impl AsRef<Path>,
+    path: &Utf8Path,
     cell_barcode_col: &CellBarcodeCol,
     cell_annotation_col: &CellAnnotationCol,
     ensembl_id_col: &EnsemblIdCol,
@@ -50,13 +51,8 @@ pub fn read_reference_dataset(
     let cell_annotations = read_cell_annotations_from_h5ad(&file, cell_annotation_col)
         .map_or_else(|err| errors.push_err(err), Some);
 
-    let features = read_features_from_h5ad(
-        &file,
-        ensembl_id_col,
-        gene_name_col,
-        feature_set.reference_transcriptome(),
-    )
-    .map_or_else(|err| errors.push_err(err), Some);
+    let features = read_features_from_h5ad(&file, ensembl_id_col, gene_name_col, feature_set)
+        .map_or_else(|err| errors.push_err(err), Some);
 
     let (Some(counts), Some(barcodes), Some(cell_annotations), Some(features)) =
         (counts, barcodes, cell_annotations, features)
@@ -74,9 +70,7 @@ pub fn read_reference_dataset(
 }
 
 // See https://www.10xgenomics.com/support/software/cell-ranger/latest/analysis/outputs/cr-outputs-h5-matrices for format specifics
-pub fn write_reference_dataset(dir: impl AsRef<Path>, ds: &PseudoAnndata) -> Result<(), Error> {
-    let dir = dir.as_ref();
-
+pub fn write_reference_dataset(dir: &Utf8Path, ds: &PseudoAnndata) -> Result<(), Error> {
     if !dir.exists() {
         fs::create_dir_all(dir).map_err(|e| Error::from_path_error(dir, e))?;
     }
@@ -105,13 +99,17 @@ pub fn write_reference_dataset(dir: impl AsRef<Path>, ds: &PseudoAnndata) -> Res
     write_dataset_to_h5_group(&matrix_group, "features/id", features.ensembl_ids())?;
     write_dataset_to_h5_group(&matrix_group, "features/name", features.gene_names())?;
 
-    write_annotations_csv(dir.join("annotations.csv"), barcodes, ds.cell_annotations())?;
+    write_annotations_csv(
+        &dir.join("annotations.csv"),
+        barcodes,
+        ds.cell_annotations(),
+    )?;
 
     Ok(())
 }
 
 fn write_annotations_csv(
-    path: impl AsRef<Path>,
+    path: &Utf8Path,
     barcodes: &Barcodes,
     annotations: &CellAnnotations,
 ) -> Result<(), Error> {
@@ -119,6 +117,13 @@ fn write_annotations_csv(
     struct CellAnnotation<'a> {
         barcode: &'a str,
         annotation: &'a str,
+    }
+
+    if path.exists() {
+        return Err(Error::InvalidOutputPath {
+            path: path.to_string(),
+            reason: format!("cannot overwrite {path}"),
+        });
     }
 
     let mut writer = csv::Writer::from_path(path).unwrap();
@@ -195,9 +200,9 @@ impl Error {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
 
     use anyhow::Context;
+    use camino::Utf8Path;
     use hdf5_metno::types::FixedAscii;
 
     use crate::reference_dataset::{
@@ -214,12 +219,11 @@ mod tests {
             "test-data/csc_adata.h5ad",
             "test-data/dense_adata.h5ad",
         ]
-        .map(|f| Path::new(f));
+        .map(|f| Utf8Path::new(f));
 
         let mut fake_counts = Vec::with_capacity(paths.len());
 
         for path in paths {
-            let filename = path.to_str().unwrap();
             let reference_dataset = read_reference_dataset(
                 path,
                 &"barcode".into(),
@@ -229,13 +233,13 @@ mod tests {
                 FeatureSet::new(Transcriptome::Grch382020A, false),
             )
             .map_err(|e| e[0].clone())
-            .context(format!("failed to read dataset from {filename}"))
+            .context(format!("failed to read dataset from {path}"))
             .unwrap();
 
             assert_eq!(
                 reference_dataset.counts().data()[0],
                 10,
-                "first entry in UMI counts of {filename} != 10"
+                "first entry in UMI counts of {path} != 10"
             );
 
             fake_counts.push(reference_dataset.counts().to_owned());
@@ -250,7 +254,7 @@ mod tests {
         let filename = "test-data/1k_mouse_kidney_CNIK_3pv3_filtered_feature_bc_matrix.h5ad";
 
         let reconstructed_dataset = read_reference_dataset(
-            filename,
+            Utf8Path::new(filename),
             &"barcode".into(),
             &"annotation".into(),
             &"gene_ids".into(),

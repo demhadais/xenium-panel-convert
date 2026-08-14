@@ -14,7 +14,7 @@ use xenium_panel_convert_core::{
     },
 };
 
-use crate::error::write_error_report;
+use crate::write::write_to_file;
 
 pub fn convert_target_list(
     TargetListCliOptions {
@@ -33,50 +33,27 @@ pub fn convert_target_list(
 
     let field_aliases = combine_field_aliases(&field_aliases_from_file, field_aliases_from_cli)?;
 
-    let result = match (species, chemistry) {
-        (Species::HomoSapiens, Chemistry::V1) => parse_target_list(
-            &target_list,
-            &field_aliases,
-            xenium_v1_human_ensembl_id_to_gene,
-        ),
-        (Species::HomoSapiens, Chemistry::Prime) => parse_target_list(
-            &target_list,
-            &field_aliases,
-            xenium_prime_human_ensembl_id_to_gene,
-        ),
-        (Species::MusMusculus, Chemistry::V1) => parse_target_list(
-            &target_list,
-            &field_aliases,
-            xenium_v1_mouse_ensembl_id_to_gene,
-        ),
-        (Species::MusMusculus, Chemistry::Prime) => parse_target_list(
-            &target_list,
-            &field_aliases,
-            xenium_prime_mouse_ensembl_id_to_gene,
-        ),
+    let ensembl_id_to_gene = match (species, chemistry) {
+        (Species::HomoSapiens, Chemistry::V1) => xenium_v1_human_ensembl_id_to_gene,
+        (Species::HomoSapiens, Chemistry::Prime) => xenium_prime_human_ensembl_id_to_gene,
+        (Species::MusMusculus, Chemistry::V1) => xenium_v1_mouse_ensembl_id_to_gene,
+        (Species::MusMusculus, Chemistry::Prime) => xenium_prime_mouse_ensembl_id_to_gene,
     };
+
+    let result = parse_target_list(&target_list, &field_aliases, ensembl_id_to_gene);
+
+    let output_file_path = |filename| output_dir.join(filename);
 
     match result {
         Ok(targets) => {
-            write_valid_targets(&targets, &output_dir.join("validated-targets.csv"))?;
-            write_targets_for_xenium_panel_designer(
+            write_to_file(&targets, &output_file_path("validated-targets.csv"))?;
+            write_to_file(
                 &XeniumPanelDesignerGeneList::from_valid_targets(targets),
-                &output_dir.join("xenium-panel-designer-targets.csv"),
+                &output_file_path("xenium-panel-designer-targets.csv"),
             )
         }
-        Err(e) => write_error_report(&e, &output_dir.join("target-list.errors.json")),
+        Err(e) => write_to_file(&e, &output_file_path("target-list.errors.json")),
     }
-}
-
-fn write_valid_targets(targets: &[ValidTarget], path: &Utf8Path) -> anyhow::Result<()> {
-    todo!()
-}
-
-fn write_targets_for_xenium_panel_designer(
-    targets: &XeniumPanelDesignerGeneList,
-    path: &Utf8Path,
-) -> anyhow::Result<()> {
-    todo!()
 }
 
 #[derive(Debug, Clone, clap::Args)]
