@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     common::ErrorVecExt,
     target_list::{
-        ErrorInner,
+        TargetErrorInner,
         chemistry::{EnsemblId, GeneName, UnvalidatedEnsemblId, UnvalidatedGeneName},
     },
 };
@@ -18,7 +18,7 @@ struct UnvalidatedGene {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub(crate) struct UnvalidatedTarget {
+pub(super) struct UnvalidatedTarget {
     #[serde(flatten)]
     gene: UnvalidatedGene,
     group: Option<String>,
@@ -35,7 +35,7 @@ impl UnvalidatedTarget {
     pub(super) fn validate(
         &self,
         ensembl_id_to_gene: impl Fn(&UnvalidatedEnsemblId) -> Option<(EnsemblId, GeneName)>,
-    ) -> Result<ValidTarget, Vec<ErrorInner>> {
+    ) -> Result<ValidTarget, Vec<TargetErrorInner>> {
         let Self {
             gene,
             group,
@@ -45,7 +45,7 @@ impl UnvalidatedTarget {
         let mut errors = Vec::new();
 
         if group.is_none() {
-            errors.push(ErrorInner::MissingField { fieldname: "group" });
+            errors.push(TargetErrorInner::MissingField { fieldname: "group" });
         }
 
         let priority =
@@ -65,14 +65,14 @@ impl UnvalidatedTarget {
     }
 }
 
-fn parse_priority_field(s: Option<&str>) -> Result<Priority, ErrorInner> {
+fn parse_priority_field(s: Option<&str>) -> Result<Priority, TargetErrorInner> {
     let Some(s) = s else {
-        return Err(ErrorInner::MissingField {
+        return Err(TargetErrorInner::MissingField {
             fieldname: "priority",
         });
     };
 
-    Priority::from_str(s).map_err(|_| ErrorInner::ParsePriority {
+    Priority::from_str(s).map_err(|_| TargetErrorInner::InvalidPriority {
         value: s.to_owned(),
     })
 }
@@ -90,9 +90,9 @@ impl ValidGene {
             gene_name: submitted_gene_name,
         }: &UnvalidatedGene,
         ensembl_id_to_gene: impl Fn(&UnvalidatedEnsemblId) -> Option<(EnsemblId, GeneName)>,
-    ) -> Result<Self, ErrorInner> {
+    ) -> Result<Self, TargetErrorInner> {
         let Some(ensembl_id) = ensembl_id else {
-            return Err(ErrorInner::NoEnsemblId);
+            return Err(TargetErrorInner::NoEnsemblId);
         };
 
         let map_valid_gene = |(ensembl_id, gene_name)| Self {
@@ -104,15 +104,15 @@ impl ValidGene {
             let correct_gene =
                 ensembl_id_to_gene(&ensembl_id.to_versionless_uppercase()).map(map_valid_gene);
 
-            return Err(ErrorInner::VersionedOrLowercaseEnsemblId { correct_gene });
+            return Err(TargetErrorInner::VersionedOrLowercaseEnsemblId { correct_gene });
         }
 
         let valid_gene = ensembl_id_to_gene(ensembl_id)
             .map(map_valid_gene)
-            .ok_or(ErrorInner::GeneNotFound)?;
+            .ok_or(TargetErrorInner::GeneNotFound)?;
 
         let Some(submitted_gene_name) = submitted_gene_name else {
-            return Err(ErrorInner::NoGeneName {
+            return Err(TargetErrorInner::NoGeneName {
                 probable_gene_name: valid_gene.gene_name,
             });
         };
@@ -120,7 +120,7 @@ impl ValidGene {
         if *submitted_gene_name == valid_gene.gene_name {
             Ok(valid_gene)
         } else {
-            Err(ErrorInner::EnsemblIdGeneNameMismatch {
+            Err(TargetErrorInner::EnsemblIdGeneNameMismatch {
                 correct_gene_name: valid_gene.gene_name,
             })
         }
@@ -147,7 +147,7 @@ pub struct ValidTarget {
 #[cfg(test)]
 mod tests {
     use crate::target_list::{
-        ErrorInner,
+        TargetErrorInner,
         chemistry::{
             UnvalidatedEnsemblId, UnvalidatedGeneName, tests::tp53_ensembl_id,
             xenium_v1_human_ensembl_id_to_gene,
@@ -209,7 +209,7 @@ mod tests {
 
         assert_eq!(
             err,
-            ErrorInner::EnsemblIdGeneNameMismatch { correct_gene_name },
+            TargetErrorInner::EnsemblIdGeneNameMismatch { correct_gene_name },
             "failed to create Ensembl ID-gene name mismatch error"
         );
     }
@@ -234,7 +234,7 @@ mod tests {
 
         assert_eq!(
             err,
-            ErrorInner::VersionedOrLowercaseEnsemblId {
+            TargetErrorInner::VersionedOrLowercaseEnsemblId {
                 correct_gene: Some(ValidGene {
                     ensembl_id: correct_ensembl_id,
                     gene_name: correct_gene_name,
@@ -254,7 +254,7 @@ mod tests {
         )
         .unwrap_err();
 
-        assert_eq!(err, ErrorInner::GeneNotFound);
+        assert_eq!(err, TargetErrorInner::GeneNotFound);
     }
 
     #[test]
@@ -273,7 +273,7 @@ mod tests {
 
         assert_eq!(
             err,
-            ErrorInner::NoGeneName {
+            TargetErrorInner::NoGeneName {
                 probable_gene_name: correct_gene_name
             }
         );

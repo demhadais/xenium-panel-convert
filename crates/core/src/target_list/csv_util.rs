@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use csv::StringRecord;
 
-use crate::target_list::{Error, ErrorInner};
+use crate::target_list::{TargetErrorInner, TargetErrorSet};
 
 pub(super) fn read_csv_trimmed(target_list: &str) -> csv::Reader<&[u8]> {
     let target_list = target_list.trim();
@@ -15,7 +15,7 @@ pub(super) fn read_csv_trimmed(target_list: &str) -> csv::Reader<&[u8]> {
 pub(super) fn rename_fields(
     original_fieldnames: &StringRecord,
     field_aliases: &HashMap<&str, &str>,
-) -> (StringRecord, Option<Error>) {
+) -> (StringRecord, Option<TargetErrorSet>) {
     let mut renamed_fields = StringRecord::new();
     let mut errors = Vec::new();
 
@@ -25,7 +25,7 @@ pub(super) fn rename_fields(
         renamed_fields.push_field(renamed);
 
         if *renamed != original {
-            errors.push(ErrorInner::RenamedField {
+            errors.push(TargetErrorInner::RenamedField {
                 original_fieldname: original.to_owned(),
                 correct_fieldname: (*renamed).to_owned(),
             });
@@ -34,7 +34,7 @@ pub(super) fn rename_fields(
 
     (
         renamed_fields,
-        (!errors.is_empty()).then_some(Error {
+        (!errors.is_empty()).then_some(TargetErrorSet {
             line_number: None,
             submitted_target: None,
             errors,
@@ -44,7 +44,7 @@ pub(super) fn rename_fields(
 
 #[cfg(test)]
 mod tests {
-    use crate::target_list::{Error, ErrorInner, csv_util::rename_fields};
+    use crate::target_list::{TargetErrorInner, TargetErrorSet, csv_util::rename_fields};
 
     #[test]
     fn renaming_fields() {
@@ -61,10 +61,10 @@ mod tests {
 
         assert_eq!(
             error,
-            Some(Error {
+            Some(TargetErrorSet {
                 line_number: None,
                 submitted_target: None,
-                errors: vec![ErrorInner::RenamedField {
+                errors: vec![TargetErrorInner::RenamedField {
                     original_fieldname: "field1".to_owned(),
                     correct_fieldname: "field_1".to_owned()
                 }]

@@ -10,7 +10,7 @@ use serde::Serialize;
 use crate::reference_dataset::{
     columns::{EnsemblIdCol, GeneNameCol},
     feature_set::FeatureSet,
-    h5_util::{read_1d_string_dataset, to_ascii},
+    h5_util::{ReadH5FieldError, read_1d_string_dataset, to_ascii},
 };
 
 pub(super) fn read_features_from_h5ad(
@@ -18,7 +18,7 @@ pub(super) fn read_features_from_h5ad(
     ensembl_id_col: &EnsemblIdCol,
     gene_name_col: &GeneNameCol,
     expected_feature_set: FeatureSet,
-) -> Result<Features, Error> {
+) -> Result<Features, VarError> {
     let features = [
         ensembl_id_col.as_str(),
         gene_name_col.as_str(),
@@ -28,11 +28,8 @@ pub(super) fn read_features_from_h5ad(
     .map(|path| read_1d_string_dataset(file, &path));
 
     let [Ok(ensembl_ids), Ok(gene_names), Ok(feature_types)] = features else {
-        return Err(Error::IncompleteFeatures {
-            reason: format!(
-                "one of the columns '{ensembl_id_col}', '{gene_name_col}', or 'feature_types' \
-                 were not found"
-            ),
+        return Err(VarError::InvalidFields {
+            errors: features.into_iter().filter_map(|res| res.err()).collect(),
         });
     };
 
@@ -55,9 +52,9 @@ fn check_feature_array_lens(
     ensembl_ids: &Array1<VarLenUnicode>,
     gene_names: &Array1<VarLenUnicode>,
     feature_types: &Array1<VarLenUnicode>,
-) -> Result<(), Error> {
+) -> Result<(), VarError> {
     if ensembl_ids.len() != gene_names.len() || ensembl_ids.len() != feature_types.len() {
-        return Err(Error::InvalidShapes {
+        return Err(VarError::InvalidShapes {
             ensembl_ids_len: ensembl_ids.len(),
             gene_names_len: gene_names.len(),
             feature_types_len: feature_types.len(),
@@ -71,8 +68,8 @@ fn check_feature_set(
     ensembl_ids: &Array1<VarLenUnicode>,
     gene_names: &Array1<VarLenUnicode>,
     expected_features: Option<&phf::Map<&str, &str>>,
-) -> Result<(), Error> {
-    let err = Err(Error::UnexpectedFeatureSet {
+) -> Result<(), VarError> {
+    let err = Err(VarError::UnexpectedFeatureSet {
         detail: "the set of features in the dataset must be the exact same as the unfiltered \
                  features of a cellranger output",
     });
@@ -139,16 +136,23 @@ impl Features {
     }
 }
 
-#[derive(Clone, thiserror::Error, Serialize, Debug)]
+#[derive(Clone, Serialize, Debug, thiserror::Error)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum Error {
-    #[error("incomplete features: {reason}")]
-    IncompleteFeatures { reason: String },
-    #[error("unexpected feature-set")]
-    UnexpectedFeatureSet { detail: &'static str },
+pub enum VarError {
     #[error(
-        "ensembl_ids, gene_names, and feature_types should have the same length - found \
-         ({ensembl_ids_len}, {gene_names_len}, {feature_types_len})"
+        "invalid fields - {}",
+        errors.iter().map(ToString::to_string).collect::<Vec<_>>().join("; ")
+    )]
+    InvalidFields {
+        errors: Vec<ReadH5FieldError>,
+    },
+    #[error("unexpected feature set - {detail}")]
+    UnexpectedFeatureSet {
+        detail: &'static str,
+    },
+    #[error(
+        "invalid shapes - {ensembl_ids_len} Ensembl IDs, {gene_names_len} gene names, \
+         {feature_types_len} feature types"
     )]
     InvalidShapes {
         ensembl_ids_len: usize,

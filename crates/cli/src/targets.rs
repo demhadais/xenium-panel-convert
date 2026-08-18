@@ -5,7 +5,7 @@ use camino::{Utf8Path, Utf8PathBuf};
 use xenium_panel_convert_core::{
     Chemistry, Species,
     target_list::{
-        ValidTarget, XeniumPanelDesignerGeneList,
+        XeniumPanelDesignerGeneList,
         chemistry::{
             xenium_prime_human_ensembl_id_to_gene, xenium_prime_mouse_ensembl_id_to_gene,
             xenium_v1_human_ensembl_id_to_gene, xenium_v1_mouse_ensembl_id_to_gene,

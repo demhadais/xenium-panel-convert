@@ -4,7 +4,7 @@ use serde::Serialize;
 use crate::reference_dataset::{
     Barcodes, CellAnnotations,
     columns::{CellAnnotationCol, CellBarcodeCol},
-    h5_util::{self, ReadFieldError, read_1d_string_dataset, to_ascii},
+    h5_util::{self, ReadH5FieldError, read_1d_string_dataset, to_ascii},
 };
 
 // Read these into String because we will write them to a CSV, so we need serde
@@ -12,7 +12,7 @@ use crate::reference_dataset::{
 pub(crate) fn read_cell_annotations_from_h5ad(
     file: &File,
     annotation_col: &CellAnnotationCol,
-) -> Result<CellAnnotations, Error> {
+) -> Result<CellAnnotations, ObsError> {
     let strings = read_1d_string_dataset(file, &format!("obs/{annotation_col}"))?;
 
     Ok(strings.mapv_into_any(|s| s.to_string()))
@@ -25,18 +25,21 @@ pub(crate) fn read_cell_annotations_from_h5ad(
 pub(crate) fn read_cell_barcodes_from_h5ad(
     file: &File,
     barcode_col: &CellBarcodeCol,
-) -> Result<Barcodes, Error> {
+) -> Result<Barcodes, ObsError> {
     let barcodes = h5_util::read_1d_string_dataset(file, &format!("obs/{barcode_col}"))?;
 
     Ok(barcodes.mapv_into_any(|b| to_ascii(&b)))
 }
 
-#[derive(Debug, Clone, thiserror::Error, Serialize)]
+#[derive(Debug, Clone, Serialize, thiserror::Error)]
 #[serde(rename_all = "snake_case", tag = "type")]
-pub enum Error {
+pub enum ObsError {
     #[error(transparent)]
-    MalformedObs {
-        #[from]
-        error: ReadFieldError,
-    },
+    MalformedObs(ReadH5FieldError),
+}
+
+impl From<ReadH5FieldError> for ObsError {
+    fn from(value: ReadH5FieldError) -> Self {
+        Self::MalformedObs(value)
+    }
 }

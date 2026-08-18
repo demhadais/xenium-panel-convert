@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use chemistry::{EnsemblId, GeneName, UnvalidatedEnsemblId};
-pub use error::Error;
-pub(crate) use error::ErrorInner;
+pub(crate) use error::TargetErrorInner;
+pub use error::TargetErrorSet;
 pub use target::ValidTarget;
 pub(crate) use target::{Priority as TargetPriority, ValidGene};
 pub use xenium_panel_designer::XeniumPanelDesignerGeneList;
@@ -22,13 +22,13 @@ pub fn parse_target_list(
     target_list: &str,
     field_aliases: &HashMap<&str, &str>,
     ensembl_id_to_gene: impl Fn(&UnvalidatedEnsemblId) -> Option<(EnsemblId, GeneName)> + Copy,
-) -> Result<Vec<ValidTarget>, Vec<Error>> {
+) -> Result<Vec<ValidTarget>, Vec<TargetErrorSet>> {
     const N_GENES: usize = 500;
 
     let mut reader = read_csv_trimmed(target_list);
     // If we can't get headers, just return early
     let headers = reader.headers().map_err(|e| {
-        vec![Error {
+        vec![TargetErrorSet {
             errors: vec![e.into()],
             line_number: None,
             submitted_target: None,
@@ -47,7 +47,7 @@ pub fn parse_target_list(
         let record = match record {
             Ok(record) => record,
             Err(err) => {
-                errors.push(Error {
+                errors.push(TargetErrorSet {
                     line_number: None,
                     submitted_target: None,
                     errors: vec![err.into()],
@@ -68,12 +68,12 @@ pub fn parse_target_list(
                     continue;
                 }
 
-                vec![ErrorInner::DuplicateGene]
+                vec![TargetErrorInner::DuplicateGene]
             }
             Err(row_errors) => row_errors,
         };
 
-        errors.push(Error {
+        errors.push(TargetErrorSet {
             line_number,
             submitted_target: Some(submitted_target),
             errors: row_errors,
@@ -92,7 +92,7 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::target_list::{
-        ErrorInner,
+        TargetErrorInner,
         chemistry::{tests::tp53_ensembl_id, xenium_v1_human_ensembl_id_to_gene},
         parse_target_list,
     };
@@ -116,7 +116,7 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(errors.len(), 1, "did not find exactly 1 error");
-        assert_eq!(errors[0].errors, [ErrorInner::DuplicateGene]);
+        assert_eq!(errors[0].errors, [TargetErrorInner::DuplicateGene]);
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::fs;
 
 use camino::Utf8Path;
 use hdf5_metno::{File, types::FixedAscii};
@@ -9,6 +9,7 @@ use crate::{
     common::ErrorVecExt,
     reference_dataset::{
         columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
+        error::ReferenceDatasetError,
         feature_set::FeatureSet,
         h5_util::write_dataset_to_h5_group,
         obs::{read_cell_annotations_from_h5ad, read_cell_barcodes_from_h5ad},
@@ -19,11 +20,11 @@ use crate::{
 };
 
 pub mod columns;
+pub mod error;
 pub mod feature_set;
 pub mod h5_util;
 pub mod obs;
 mod pseudo_anndata;
-pub mod specification;
 pub mod umi_counts;
 pub mod var;
 
@@ -34,11 +35,11 @@ pub fn read_reference_dataset(
     ensembl_id_col: &EnsemblIdCol,
     gene_name_col: &GeneNameCol,
     feature_set: FeatureSet,
-) -> Result<PseudoAnndata, Vec<Error>> {
+) -> Result<PseudoAnndata, Vec<ReferenceDatasetError>> {
     let mut errors = Vec::new();
 
     let file = hdf5_metno::File::open(path).map_err(|e| {
-        vec![Error::InvalidH5File {
+        vec![ReferenceDatasetError::InvalidH5File {
             reason: e.to_string(),
         }]
     })?;
@@ -70,14 +71,17 @@ pub fn read_reference_dataset(
 }
 
 // See https://www.10xgenomics.com/support/software/cell-ranger/latest/analysis/outputs/cr-outputs-h5-matrices for format specifics
-pub fn write_reference_dataset(dir: &Utf8Path, ds: &PseudoAnndata) -> Result<(), Error> {
+pub fn write_reference_dataset(
+    dir: &Utf8Path,
+    ds: &PseudoAnndata,
+) -> Result<(), ReferenceDatasetError> {
     if !dir.exists() {
-        fs::create_dir_all(dir).map_err(|e| Error::from_path_error(dir, e))?;
+        fs::create_dir_all(dir).map_err(|e| ReferenceDatasetError::from_path_error(dir, e))?;
     }
 
     let matrix_path = dir.join("matrix.h5");
-    let file =
-        File::create_excl(&matrix_path).map_err(|e| Error::from_path_error(&matrix_path, e))?;
+    let file = File::create_excl(&matrix_path)
+        .map_err(|e| ReferenceDatasetError::from_path_error(&matrix_path, e))?;
 
     let matrix_group = file.create_group("matrix").unwrap();
 
@@ -112,7 +116,7 @@ fn write_annotations_csv(
     path: &Utf8Path,
     barcodes: &Barcodes,
     annotations: &CellAnnotations,
-) -> Result<(), Error> {
+) -> Result<(), ReferenceDatasetError> {
     #[derive(Debug, Serialize)]
     struct CellAnnotation<'a> {
         barcode: &'a str,
@@ -120,7 +124,7 @@ fn write_annotations_csv(
     }
 
     if path.exists() {
-        return Err(Error::InvalidOutputPath {
+        return Err(ReferenceDatasetError::InvalidOutputPath {
             path: path.to_string(),
             reason: format!("cannot overwrite {path}"),
         });
@@ -145,63 +149,8 @@ type Barcodes = Array1<Barcode>;
 
 type CellAnnotations = Array1<String>;
 
-#[derive(Clone, Debug, thiserror::Error, Serialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum Error {
-    #[error("invalid H5 file: {reason}")]
-    InvalidH5File { reason: String },
-    #[error(transparent)]
-    UmiCounts {
-        #[from]
-        error: umi_counts::Error,
-    },
-    #[error(transparent)]
-    Obs {
-        #[from]
-        error: obs::Error,
-    },
-    #[error(transparent)]
-    Var {
-        #[from]
-        error: var::Error,
-    },
-    #[error("number of cell barcodes != number of cell annotations")]
-    Shape {
-        n_barcodes: usize,
-        n_annotations: usize,
-        n_features: usize,
-        counts_shape: [i32; 2],
-    },
-    #[error("invalid output path: {reason}")]
-    InvalidOutputPath { path: String, reason: String },
-    #[error("something went wrong writing H5 object: {reason}")]
-    WriteH5Object { path: String, reason: String },
-}
-
-impl<E> ErrorVecExt<E> for Vec<Error>
-where
-    E: Into<Error>,
-{
-    fn push_err<T>(&mut self, err: E) -> Option<T> {
-        self.push(err.into());
-
-        None
-    }
-}
-
-impl Error {
-    fn from_path_error(path: impl AsRef<Path>, error: impl std::error::Error) -> Self {
-        Self::InvalidOutputPath {
-            path: path.as_ref().to_str().map(str::to_owned).unwrap(),
-            reason: error.to_string(),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-
-    use anyhow::Context;
     use camino::Utf8Path;
     use hdf5_metno::types::FixedAscii;
 
@@ -233,8 +182,7 @@ mod tests {
                 FeatureSet::new(Transcriptome::Grch382020A, false),
             )
             .map_err(|e| e[0].clone())
-            .context(format!("failed to read dataset from {path}"))
-            .unwrap();
+            .expect(&format!("failed to read {path}"));
 
             assert_eq!(
                 reference_dataset.counts().data()[0],
@@ -262,8 +210,7 @@ mod tests {
             FeatureSet::new(Transcriptome::Grch382020A, false),
         )
         .map_err(|e| e[0].clone())
-        .context(format!("failed to validate {filename}"))
-        .unwrap();
+        .expect(&format!("failed to validate {filename}"));
 
         // Compare it against the original data
         let original_h5 = hdf5_metno::File::open(

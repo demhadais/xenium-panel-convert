@@ -5,21 +5,23 @@ pub(crate) use matrix::RawCscUmiCounts;
 use serde::Serialize;
 
 use crate::reference_dataset::{
-    h5_util::{FieldType, ReadFieldError, read_attribute, read_container, read_dataset_raw},
+    h5_util::{FieldType, ReadH5FieldError, read_attribute, read_container, read_dataset_raw},
     umi_counts::encoding_type::{DenseEncodingType, EncodingType, SparseEncodingType},
 };
 
 mod encoding_type;
 mod matrix;
 
-pub(super) fn read_umi_counts_from_h5ad(file: &File) -> Result<RawCscUmiCounts, Error> {
+pub(super) fn read_umi_counts_from_h5ad(file: &File) -> Result<RawCscUmiCounts, UmiCountsError> {
     let encoding_type: VarLenUnicode =
         read_attribute(&read_container(file, "X")?, "encoding-type")?;
 
-    let encoding_type =
-        EncodingType::from_str(&encoding_type).map_err(|()| Error::UnknownEncodingType {
+    let encoding_type = EncodingType::from_str(&encoding_type).map_err(|()| {
+        UmiCountsError::UnknownEncodingType {
             found: encoding_type.to_string(),
-        })?;
+            expected: EncodingType::VARIANTS,
+        }
+    })?;
 
     match encoding_type {
         EncodingType::Sparse(enc) => read_x_sparse(file, enc),
@@ -27,7 +29,10 @@ pub(super) fn read_umi_counts_from_h5ad(file: &File) -> Result<RawCscUmiCounts, 
     }
 }
 
-fn read_x_sparse(file: &File, encoding_type: SparseEncodingType) -> Result<RawCscUmiCounts, Error> {
+fn read_x_sparse(
+    file: &File,
+    encoding_type: SparseEncodingType,
+) -> Result<RawCscUmiCounts, UmiCountsError> {
     let data = read_dataset_raw(file, "X/data")?;
     let indptr = read_dataset_raw(file, "X/indptr")?;
     let indices = read_dataset_raw(file, "X/indices")?;
@@ -39,52 +44,57 @@ fn read_x_sparse(file: &File, encoding_type: SparseEncodingType) -> Result<RawCs
         .group("X")
         .and_then(|x| x.attr("shape"))
         .and_then(|sh| sh.read_1d())
-        .map_err(|_| Error::MalformedCounts {
-            error: ReadFieldError::DataTypeOrMissing {
-                field_type: FieldType::Attribute,
-                path: "X/shape".to_owned(),
-            },
+        .map_err(|_| ReadH5FieldError::DataTypeOrMissing {
+            field_type: FieldType::Attribute,
+            path: "X/shape".to_owned(),
         })?;
     let shape = (shape[0], shape[1]);
 
     RawCscUmiCounts::from_sparse_matrix(shape, indptr, indices, data, encoding_type)
 }
 
-fn read_x_dense(file: &File, encoding_type: DenseEncodingType) -> Result<RawCscUmiCounts, Error> {
-    let counts =
-        file.dataset("X")
-            .and_then(|ds| ds.read_2d())
-            .map_err(|_| Error::MalformedMatrix {
-                reason: "failed to read counts in dataset 'X' as 2D array".to_owned(),
-            })?;
+fn read_x_dense(
+    file: &File,
+    encoding_type: DenseEncodingType,
+) -> Result<RawCscUmiCounts, UmiCountsError> {
+    let counts = file.dataset("X").and_then(|ds| ds.read_2d()).map_err(|_| {
+        UmiCountsError::MalformedMatrix {
+            reason: "failed to read counts in dataset 'X' as 2D array".to_owned(),
+        }
+    })?;
 
     RawCscUmiCounts::from_dense_matrix(&counts, encoding_type)
 }
 
-#[derive(Debug, thiserror::Error, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, thiserror::Error)]
 #[serde(rename_all = "snake_case", tag = "type")]
-pub enum Error {
+pub enum UmiCountsError {
     #[error(transparent)]
-    MalformedCounts {
-        #[from]
-        error: ReadFieldError,
+    MalformedCounts(ReadH5FieldError),
+    #[error("unknown encoding type {found} - expected one of {expected:?}")]
+    UnknownEncodingType {
+        found: String,
+        expected: &'static [&'static str],
     },
-    #[error(
-        "unknown encoding type: '{found}'. Expected one of: {:?}",
-        EncodingType::VARIANTS
-    )]
-    UnknownEncodingType { found: String },
     #[error("empty counts")]
     EmptyCounts,
     #[error("transformed counts")]
     TransformedCounts,
     #[error("normalized counts")]
     NormalizedCounts,
-    #[error("malformed matrix: {reason}")]
-    MalformedMatrix { reason: String },
+    #[error("malformed matrix - {reason}")]
+    MalformedMatrix {
+        reason: String,
+    },
 }
 
-impl From<sprs::errors::StructureError> for Error {
+impl From<ReadH5FieldError> for UmiCountsError {
+    fn from(value: ReadH5FieldError) -> Self {
+        Self::MalformedCounts(value)
+    }
+}
+
+impl From<sprs::errors::StructureError> for UmiCountsError {
     fn from(err: sprs::errors::StructureError) -> Self {
         Self::MalformedMatrix {
             reason: err.to_string(),
@@ -116,8 +126,12 @@ mod tests {
 
         for f in files {
             let filename = f.filename();
-            let counts = read_umi_counts_from_h5ad(&f)
-                .unwrap_or_else(|e| panic!("failed to read UMI counts from {filename}: {e}"));
+            let counts = read_umi_counts_from_h5ad(&f).unwrap_or_else(|e| {
+                panic!(
+                    "failed to read UMI counts from {filename}: {}",
+                    serde_json::to_string(&e).unwrap()
+                )
+            });
 
             if filename.contains("adata") {
                 assert_eq!(

@@ -4,7 +4,7 @@ use ndarray::Array2;
 use sprs::CsMatI;
 
 use crate::reference_dataset::umi_counts::{
-    Error,
+    UmiCountsError,
     encoding_type::{DenseEncodingType, SparseEncodingType},
     matrix::csc::CscMatrix,
 };
@@ -27,7 +27,7 @@ impl RawCscUmiCounts {
         indices: Vec<i64>,
         data: Vec<f32>,
         encoding_type: SparseEncodingType,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, UmiCountsError> {
         let mtx = match encoding_type {
             SparseEncodingType::CsrMatrix => Matrix::try_new(shape, indptr, indices, data),
             SparseEncodingType::CscMatrix => Matrix::try_new_csc(shape, indptr, indices, data),
@@ -39,7 +39,7 @@ impl RawCscUmiCounts {
             .and_then(Self::from_csc_matrix)
     }
 
-    fn from_csc_matrix(mtx: UnvalidatedCscMatrix) -> Result<Self, Error> {
+    fn from_csc_matrix(mtx: UnvalidatedCscMatrix) -> Result<Self, UmiCountsError> {
         let mtx = validate_counts(mtx)?;
         Ok(Self(mtx))
     }
@@ -47,7 +47,7 @@ impl RawCscUmiCounts {
     pub(super) fn from_dense_matrix(
         counts: &Array2<f32>,
         encoding_type: DenseEncodingType,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, UmiCountsError> {
         match encoding_type {
             DenseEncodingType::Array => Self::from_csc_matrix(CscMatrix::new(
                 Matrix::csc_from_dense(counts.view(), 0.).transpose_into(),
@@ -74,7 +74,7 @@ impl RawCscUmiCounts {
     }
 }
 
-fn validate_counts(mtx: UnvalidatedCscMatrix) -> Result<ValidatedCscMatrix, Error> {
+fn validate_counts(mtx: UnvalidatedCscMatrix) -> Result<ValidatedCscMatrix, UmiCountsError> {
     let shape = mtx.as_matrix().shape();
 
     let (indptr, indices, f32_data) = mtx.into_inner().into_raw_storage();
@@ -85,7 +85,7 @@ fn validate_counts(mtx: UnvalidatedCscMatrix) -> Result<ValidatedCscMatrix, Erro
         .collect::<Result<_, _>>()?;
 
     if all_total_counts_are_equal(&i32_data, &indptr)? {
-        return Err(Error::NormalizedCounts);
+        return Err(UmiCountsError::NormalizedCounts);
     }
 
     Ok(CscMatrix::new(Matrix::new_csc(
@@ -93,7 +93,7 @@ fn validate_counts(mtx: UnvalidatedCscMatrix) -> Result<ValidatedCscMatrix, Erro
     )))
 }
 
-fn all_total_counts_are_equal(data: &[i32], indptr: &[i64]) -> Result<bool, Error> {
+fn all_total_counts_are_equal(data: &[i32], indptr: &[i64]) -> Result<bool, UmiCountsError> {
     let n_cells = indptr.len() - 1;
     let mut total_counts = vec![0; n_cells];
 
@@ -106,7 +106,7 @@ fn all_total_counts_are_equal(data: &[i32], indptr: &[i64]) -> Result<bool, Erro
     }
 
     let mut nonempty_cells = total_counts.iter().copied().filter(|tc| *tc > 0);
-    let first_nonempty_cell = nonempty_cells.next().ok_or(Error::EmptyCounts)?;
+    let first_nonempty_cell = nonempty_cells.next().ok_or(UmiCountsError::EmptyCounts)?;
 
     Ok(nonempty_cells.all(|tc| tc == first_nonempty_cell))
 }
@@ -121,13 +121,13 @@ fn calculate_total_counts_for_cell(
 }
 
 #[allow(clippy::float_cmp)]
-fn f32_to_i32(f: f32) -> Result<i32, Error> {
+fn f32_to_i32(f: f32) -> Result<i32, UmiCountsError> {
     let is_nonnegative_integral = f.round() == f && f >= 0.0;
 
     if is_nonnegative_integral {
         Ok(f as i32)
     } else {
-        Err(Error::TransformedCounts)
+        Err(UmiCountsError::TransformedCounts)
     }
 }
 
@@ -136,7 +136,7 @@ mod tests {
     use ndarray::{Array2, array};
 
     use crate::reference_dataset::umi_counts::{
-        Error, RawCscUmiCounts,
+        RawCscUmiCounts, UmiCountsError,
         encoding_type::{DenseEncodingType, SparseEncodingType},
         matrix::Matrix,
     };
@@ -200,7 +200,7 @@ mod tests {
 
         std::assert_matches!(
             RawCscUmiCounts::from_dense_matrix(&normalized_counts, DenseEncodingType::Array),
-            Err(Error::NormalizedCounts)
+            Err(UmiCountsError::NormalizedCounts)
         );
     }
 
@@ -210,7 +210,7 @@ mod tests {
 
         std::assert_matches!(
             RawCscUmiCounts::from_dense_matrix(&all_zero_counts, DenseEncodingType::Array),
-            Err(Error::EmptyCounts)
+            Err(UmiCountsError::EmptyCounts)
         );
     }
 
@@ -220,7 +220,7 @@ mod tests {
 
         std::assert_matches!(
             RawCscUmiCounts::from_dense_matrix(&counts, DenseEncodingType::Array),
-            Err(Error::TransformedCounts)
+            Err(UmiCountsError::TransformedCounts)
         );
     }
 }

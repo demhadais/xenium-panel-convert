@@ -7,8 +7,8 @@ use anyhow::{Context, anyhow, bail, ensure};
 use camino::{Utf8Path, Utf8PathBuf};
 use serde::Serialize;
 use xenium_panel_convert_core::reference_dataset::{
-    self,
     columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
+    error::ReferenceDatasetError,
     feature_set::FeatureSet,
     read_reference_dataset, write_reference_dataset,
 };
@@ -66,7 +66,7 @@ pub fn convert_reference_datasets(
 #[derive(Debug, Serialize)]
 struct DatasetErrors {
     path: Utf8PathBuf,
-    errors: Vec<reference_dataset::Error>,
+    errors: Vec<ReferenceDatasetError>,
 }
 
 #[derive(Clone, Debug)]

@@ -1,5 +1,6 @@
 use crate::reference_dataset::{
-    Barcodes, CellAnnotations, umi_counts::RawCscUmiCounts, var::Features,
+    Barcodes, CellAnnotations, error::ReferenceDatasetError, umi_counts::RawCscUmiCounts,
+    var::Features,
 };
 
 #[derive(Debug)]
@@ -16,13 +17,13 @@ impl PseudoAnndata {
         barcodes: Barcodes,
         cell_annotations: CellAnnotations,
         features: Features,
-    ) -> Result<Self, super::Error> {
+    ) -> Result<Self, ReferenceDatasetError> {
         let n_barcodes = barcodes.len();
         let n_annotations = cell_annotations.len();
         let n_features = features.len();
         let counts_shape = counts.shape();
 
-        let err = Err(super::Error::Shape {
+        let err = Err(ReferenceDatasetError::Shape {
             n_barcodes,
             n_annotations,
             n_features,
