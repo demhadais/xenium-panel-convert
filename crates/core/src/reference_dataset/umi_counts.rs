@@ -46,7 +46,7 @@ fn read_x_sparse(
         .and_then(|sh| sh.read_1d())
         .map_err(|_| ReadH5FieldError::DataTypeOrMissing {
             field_type: FieldType::Attribute,
-            path: "X/shape".to_owned(),
+            object_path: "X/shape".to_owned(),
         })?;
     let shape = (shape[0], shape[1]);
 
@@ -70,7 +70,9 @@ fn read_x_dense(
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum UmiCountsError {
     #[error(transparent)]
-    MalformedCounts(ReadH5FieldError),
+    MalformedCounts {
+        error: ReadH5FieldError,
+    },
     #[error("unknown encoding type {found} - expected one of {expected:?}")]
     UnknownEncodingType {
         found: String,
@@ -89,8 +91,8 @@ pub enum UmiCountsError {
 }
 
 impl From<ReadH5FieldError> for UmiCountsError {
-    fn from(value: ReadH5FieldError) -> Self {
-        Self::MalformedCounts(value)
+    fn from(error: ReadH5FieldError) -> Self {
+        Self::MalformedCounts { error }
     }
 }
 

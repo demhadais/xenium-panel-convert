@@ -35,11 +35,13 @@ pub(crate) fn read_cell_barcodes_from_h5ad(
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum ObsError {
     #[error(transparent)]
-    MalformedObs(ReadH5FieldError),
+    MalformedObs {
+        error: ReadH5FieldError,
+    },
 }
 
 impl From<ReadH5FieldError> for ObsError {
-    fn from(value: ReadH5FieldError) -> Self {
-        Self::MalformedObs(value)
+    fn from(error: ReadH5FieldError) -> Self {
+        Self::MalformedObs { error }
     }
 }

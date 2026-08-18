@@ -9,15 +9,31 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
-pub struct TargetErrorSet {
-    pub(super) line_number: Option<u64>,
-    pub(super) submitted_target: Option<UnvalidatedTarget>,
-    pub(super) errors: Vec<TargetErrorInner>,
+pub struct TargetErrors {
+    pub line_number: Option<u64>,
+    pub submitted_target: Option<UnvalidatedTarget>,
+    pub errors: Vec<TargetErrorWrapper>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, thiserror::Error)]
+#[error("{error}\nhint: {hint}")]
+pub struct TargetErrorWrapper {
+    pub error: TargetErrorInner,
+    pub hint: &'static str,
+}
+
+impl From<TargetErrorInner> for TargetErrorWrapper {
+    fn from(error: TargetErrorInner) -> Self {
+        Self {
+            error,
+            hint: todo!(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, thiserror::Error)]
 #[serde(rename_all = "snake_case", tag = "type")]
-pub(crate) enum TargetErrorInner {
+pub enum TargetErrorInner {
     #[error("malformed CSV - {reason}")]
     MalformedCsv {
         reason: String,

@@ -1,80 +1,140 @@
-use camino::Utf8Path;
+use camino::Utf8PathBuf;
 use serde::Serialize;
 
 use crate::{
     common::ErrorVecExt,
-    reference_dataset::{obs::ObsError, umi_counts::UmiCountsError, var::VarError},
+    reference_dataset::{
+        h5_util::{CreateH5GroupError, WriteH5DatasetError},
+        obs::ObsError,
+        pseudo_anndata::ShapeMismatchError,
+        umi_counts::UmiCountsError,
+        var::VarError,
+    },
 };
 
 #[derive(Clone, Debug, Serialize, thiserror::Error)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum ReferenceDatasetError {
+pub enum ReadReferenceDatasetError {
     #[error("invalid H5 file - {reason}")]
     InvalidH5File {
         reason: String,
     },
     #[error(transparent)]
-    UmiCounts(UmiCountsError),
+    UmiCounts {
+        error: UmiCountsError,
+    },
     #[error(transparent)]
-    Obs(ObsError),
+    Obs {
+        error: ObsError,
+    },
     #[error(transparent)]
-    Var(VarError),
-    #[error(
-        "invalid shape - {n_barcodes} barcodes, {n_annotations} cell annotations, {n_features} \
-         features, counts shape {counts_shape:?}"
-    )]
+    Var {
+        error: VarError,
+    },
+    #[error(transparent)]
     Shape {
-        n_barcodes: usize,
-        n_annotations: usize,
-        n_features: usize,
-        counts_shape: [i32; 2],
-    },
-    #[error("invalid output path {path} - {reason}")]
-    InvalidOutputPath {
-        path: String,
-        reason: String,
-    },
-    #[error("failed to write H5 object {path} - {reason}")]
-    WriteH5Object {
-        path: String,
-        reason: String,
+        error: ShapeMismatchError,
     },
 }
 
-impl ReferenceDatasetError {
-    pub(super) fn from_path_error(path: &Utf8Path, error: impl std::error::Error) -> Self {
-        Self::InvalidOutputPath {
-            path: path.to_string(),
-            reason: error.to_string(),
-        }
+impl From<UmiCountsError> for ReadReferenceDatasetError {
+    fn from(error: UmiCountsError) -> Self {
+        Self::UmiCounts { error }
     }
 }
 
-impl From<UmiCountsError> for ReferenceDatasetError {
-    fn from(value: UmiCountsError) -> Self {
-        Self::UmiCounts(value)
+impl From<ObsError> for ReadReferenceDatasetError {
+    fn from(error: ObsError) -> Self {
+        Self::Obs { error }
     }
 }
 
-impl From<ObsError> for ReferenceDatasetError {
-    fn from(value: ObsError) -> Self {
-        Self::Obs(value)
+impl From<VarError> for ReadReferenceDatasetError {
+    fn from(error: VarError) -> Self {
+        Self::Var { error }
     }
 }
 
-impl From<VarError> for ReferenceDatasetError {
-    fn from(value: VarError) -> Self {
-        Self::Var(value)
+impl From<ShapeMismatchError> for ReadReferenceDatasetError {
+    fn from(error: ShapeMismatchError) -> Self {
+        Self::Shape { error }
     }
 }
 
-impl<E> ErrorVecExt<E> for Vec<ReferenceDatasetError>
+impl<E> ErrorVecExt<E> for Vec<ReadReferenceDatasetError>
 where
-    E: Into<ReferenceDatasetError>,
+    E: Into<ReadReferenceDatasetError>,
 {
     fn push_err<T>(&mut self, err: E) -> Option<T> {
         self.push(err.into());
 
         None
     }
+}
+
+#[derive(Clone, Debug, Serialize, thiserror::Error)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum WriteReferenceDatasetError {
+    #[error("failed to create output directory {path} - {reason}")]
+    CreateOutputDir {
+        path: Utf8PathBuf,
+        reason: String,
+    },
+    #[error("failed to create {path} - {reason}")]
+    CreateMatrixFile {
+        path: Utf8PathBuf,
+        reason: String,
+    },
+    #[error("{path} - {error}")]
+    CreateH5Group {
+        path: Utf8PathBuf,
+        error: CreateH5GroupError,
+    },
+    #[error("{path} - {error}")]
+    WriteH5Dataset {
+        path: Utf8PathBuf,
+        error: WriteH5DatasetError,
+    },
+    #[error("cannot overwrite {path}")]
+    AnnotationsCsvExists {
+        path: Utf8PathBuf,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, thiserror::Error)]
+#[error("{error}\nhint: {hint}")]
+pub struct ReadReferenceDatasetErrorWrapper {
+    pub error: ReadReferenceDatasetError,
+    pub hint: &'static str,
+}
+
+impl From<ReadReferenceDatasetError> for ReadReferenceDatasetErrorWrapper {
+    fn from(error: ReadReferenceDatasetError) -> Self {
+        Self {
+            error,
+            hint: todo!(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, thiserror::Error)]
+#[error("{error}\nhint: {hint}")]
+pub struct WriteReferenceDatasetErrorWrapper {
+    pub error: WriteReferenceDatasetError,
+    pub hint: &'static str,
+}
+
+impl From<WriteReferenceDatasetError> for WriteReferenceDatasetErrorWrapper {
+    fn from(error: WriteReferenceDatasetError) -> Self {
+        Self {
+            error,
+            hint: todo!(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ReadReferenceDatasetErrors {
+    pub path: Utf8PathBuf,
+    pub errors: Vec<ReadReferenceDatasetErrorWrapper>,
 }

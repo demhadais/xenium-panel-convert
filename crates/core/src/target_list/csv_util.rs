@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use csv::StringRecord;
 
-use crate::target_list::{TargetErrorInner, TargetErrorSet};
+use crate::target_list::{TargetErrorInner, TargetErrors};
 
 pub(super) fn read_csv_trimmed(target_list: &str) -> csv::Reader<&[u8]> {
     let target_list = target_list.trim();
@@ -15,7 +15,7 @@ pub(super) fn read_csv_trimmed(target_list: &str) -> csv::Reader<&[u8]> {
 pub(super) fn rename_fields(
     original_fieldnames: &StringRecord,
     field_aliases: &HashMap<&str, &str>,
-) -> (StringRecord, Option<TargetErrorSet>) {
+) -> (StringRecord, Option<TargetErrors>) {
     let mut renamed_fields = StringRecord::new();
     let mut errors = Vec::new();
 
@@ -34,17 +34,17 @@ pub(super) fn rename_fields(
 
     (
         renamed_fields,
-        (!errors.is_empty()).then_some(TargetErrorSet {
+        (!errors.is_empty()).then_some(TargetErrors {
             line_number: None,
             submitted_target: None,
-            errors,
+            errors: errors.into_iter().map(Into::into).collect(),
         }),
     )
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::target_list::{TargetErrorInner, TargetErrorSet, csv_util::rename_fields};
+    use crate::target_list::{TargetErrorInner, TargetErrors, csv_util::rename_fields};
 
     #[test]
     fn renaming_fields() {
@@ -61,13 +61,16 @@ mod tests {
 
         assert_eq!(
             error,
-            Some(TargetErrorSet {
+            Some(TargetErrors {
                 line_number: None,
                 submitted_target: None,
-                errors: vec![TargetErrorInner::RenamedField {
-                    original_fieldname: "field1".to_owned(),
-                    correct_fieldname: "field_1".to_owned()
-                }]
+                errors: vec![
+                    TargetErrorInner::RenamedField {
+                        original_fieldname: "field1".to_owned(),
+                        correct_fieldname: "field_1".to_owned()
+                    }
+                    .into()
+                ]
             }),
             "failed to construct field-renaming error"
         );

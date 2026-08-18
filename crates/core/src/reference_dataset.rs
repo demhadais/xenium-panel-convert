@@ -9,9 +9,12 @@ use crate::{
     common::ErrorVecExt,
     reference_dataset::{
         columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
-        error::ReferenceDatasetError,
+        error::{
+            ReadReferenceDatasetError, ReadReferenceDatasetErrors, WriteReferenceDatasetError,
+            WriteReferenceDatasetErrorWrapper,
+        },
         feature_set::FeatureSet,
-        h5_util::write_dataset_to_h5_group,
+        h5_util::{create_h5_group, write_dataset_to_h5_group},
         obs::{read_cell_annotations_from_h5ad, read_cell_barcodes_from_h5ad},
         pseudo_anndata::PseudoAnndata,
         umi_counts::read_umi_counts_from_h5ad,
@@ -35,13 +38,18 @@ pub fn read_reference_dataset(
     ensembl_id_col: &EnsemblIdCol,
     gene_name_col: &GeneNameCol,
     feature_set: FeatureSet,
-) -> Result<PseudoAnndata, Vec<ReferenceDatasetError>> {
+) -> Result<PseudoAnndata, ReadReferenceDatasetErrors> {
     let mut errors = Vec::new();
 
+    let collect = |errors: Vec<ReadReferenceDatasetError>| ReadReferenceDatasetErrors {
+        path: path.to_owned(),
+        errors: errors.into_iter().map(Into::into).collect(),
+    };
+
     let file = hdf5_metno::File::open(path).map_err(|e| {
-        vec![ReferenceDatasetError::InvalidH5File {
+        collect(vec![ReadReferenceDatasetError::InvalidH5File {
             reason: e.to_string(),
-        }]
+        }])
     })?;
 
     let counts = read_umi_counts_from_h5ad(&file).map_or_else(|err| errors.push_err(err), Some);
@@ -58,13 +66,13 @@ pub fn read_reference_dataset(
     let (Some(counts), Some(barcodes), Some(cell_annotations), Some(features)) =
         (counts, barcodes, cell_annotations, features)
     else {
-        return Err(errors);
+        return Err(collect(errors));
     };
 
     let anndata =
         PseudoAnndata::new(counts, barcodes, cell_annotations, features).map_err(|err| {
             errors.push_err::<()>(err);
-            errors
+            collect(errors)
         })?;
 
     Ok(anndata)
@@ -74,60 +82,74 @@ pub fn read_reference_dataset(
 pub fn write_reference_dataset(
     dir: &Utf8Path,
     ds: &PseudoAnndata,
-) -> Result<(), ReferenceDatasetError> {
+) -> Result<(), WriteReferenceDatasetErrorWrapper> {
     if !dir.exists() {
-        fs::create_dir_all(dir).map_err(|e| ReferenceDatasetError::from_path_error(dir, e))?;
+        fs::create_dir_all(dir).map_err(|e| WriteReferenceDatasetError::CreateOutputDir {
+            path: dir.to_owned(),
+            reason: e.to_string(),
+        })?;
+    }
+
+    let annotations_path = dir.join("annotations.csv");
+    if annotations_path.exists() {
+        return Err(WriteReferenceDatasetError::AnnotationsCsvExists {
+            path: annotations_path,
+        }
+        .into());
     }
 
     let matrix_path = dir.join("matrix.h5");
-    let file = File::create_excl(&matrix_path)
-        .map_err(|e| ReferenceDatasetError::from_path_error(&matrix_path, e))?;
+    let file = File::create_excl(&matrix_path).map_err(|e| {
+        WriteReferenceDatasetError::CreateMatrixFile {
+            path: matrix_path.clone(),
+            reason: e.to_string(),
+        }
+    })?;
 
-    let matrix_group = file.create_group("matrix").unwrap();
+    let matrix_group = create_h5_group(&file, "matrix").map_err(|error| {
+        WriteReferenceDatasetError::CreateH5Group {
+            path: matrix_path.clone(),
+            error,
+        }
+    })?;
+
+    let write_err = |error| WriteReferenceDatasetError::WriteH5Dataset {
+        path: matrix_path.clone(),
+        error,
+    };
 
     let barcodes = ds.barcodes();
-    write_dataset_to_h5_group(&matrix_group, "barcodes", barcodes)?;
+    write_dataset_to_h5_group(&matrix_group, "barcodes", barcodes).map_err(write_err)?;
 
     let counts = ds.counts();
-    write_dataset_to_h5_group(&matrix_group, "data", counts.data())?;
-    write_dataset_to_h5_group(&matrix_group, "indices", counts.indices())?;
-    write_dataset_to_h5_group(&matrix_group, "indptr", counts.indptr().iter().as_slice())?;
-    write_dataset_to_h5_group(&matrix_group, "shape", &counts.shape())?;
+    write_dataset_to_h5_group(&matrix_group, "data", counts.data()).map_err(write_err)?;
+    write_dataset_to_h5_group(&matrix_group, "indices", counts.indices()).map_err(write_err)?;
+    write_dataset_to_h5_group(&matrix_group, "indptr", counts.indptr().iter().as_slice())
+        .map_err(write_err)?;
+    write_dataset_to_h5_group(&matrix_group, "shape", &counts.shape()).map_err(write_err)?;
 
     let features = ds.features();
     write_dataset_to_h5_group(
         &matrix_group,
         "features/feature_type",
         features.feature_types(),
-    )?;
-    write_dataset_to_h5_group(&matrix_group, "features/id", features.ensembl_ids())?;
-    write_dataset_to_h5_group(&matrix_group, "features/name", features.gene_names())?;
+    )
+    .map_err(write_err)?;
+    write_dataset_to_h5_group(&matrix_group, "features/id", features.ensembl_ids())
+        .map_err(write_err)?;
+    write_dataset_to_h5_group(&matrix_group, "features/name", features.gene_names())
+        .map_err(write_err)?;
 
-    write_annotations_csv(
-        &dir.join("annotations.csv"),
-        barcodes,
-        ds.cell_annotations(),
-    )?;
+    write_annotations_csv(&annotations_path, barcodes, ds.cell_annotations());
 
     Ok(())
 }
 
-fn write_annotations_csv(
-    path: &Utf8Path,
-    barcodes: &Barcodes,
-    annotations: &CellAnnotations,
-) -> Result<(), ReferenceDatasetError> {
+fn write_annotations_csv(path: &Utf8Path, barcodes: &Barcodes, annotations: &CellAnnotations) {
     #[derive(Debug, Serialize)]
     struct CellAnnotation<'a> {
         barcode: &'a str,
         annotation: &'a str,
-    }
-
-    if path.exists() {
-        return Err(ReferenceDatasetError::InvalidOutputPath {
-            path: path.to_string(),
-            reason: format!("cannot overwrite {path}"),
-        });
     }
 
     let mut writer = csv::Writer::from_path(path).unwrap();
@@ -139,8 +161,6 @@ fn write_annotations_csv(
             })
             .unwrap();
     }
-
-    Ok(())
 }
 
 type Barcode = FixedAscii<64>;
@@ -181,8 +201,12 @@ mod tests {
                 &"gene_name".into(),
                 FeatureSet::new(Transcriptome::Grch382020A, false),
             )
-            .map_err(|e| e[0].clone())
-            .expect(&format!("failed to read {path}"));
+            .unwrap_or_else(|e| {
+                panic!(
+                    "failed to read {path}: {}",
+                    serde_json::to_string(&e).unwrap()
+                )
+            });
 
             assert_eq!(
                 reference_dataset.counts().data()[0],
@@ -209,8 +233,12 @@ mod tests {
             &"gene_name".into(),
             FeatureSet::new(Transcriptome::Grch382020A, false),
         )
-        .map_err(|e| e[0].clone())
-        .expect(&format!("failed to validate {filename}"));
+        .unwrap_or_else(|e| {
+            panic!(
+                "failed to validate {filename}: {}",
+                serde_json::to_string(&e).unwrap()
+            )
+        });
 
         // Compare it against the original data
         let original_h5 = hdf5_metno::File::open(

@@ -1,8 +1,9 @@
 use serde::Serialize;
 
 use crate::target_list::{
-    TargetPriority, ValidGene, ValidTarget,
+    ValidTarget,
     chemistry::{EnsemblId, GeneName},
+    target::{self, ValidGene},
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -49,7 +50,7 @@ impl XeniumPanelDesignerGene {
             gene: *gene_name,
             ensembl_id: *ensembl_id,
             probe_sets: None,
-            force: (*priority == TargetPriority::MustHave).then_some(Force::Forced),
+            force: (*priority == target::Priority::MustHave).then_some(Force::Forced),
         }
     }
 }

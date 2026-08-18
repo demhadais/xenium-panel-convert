@@ -55,7 +55,7 @@ impl UnvalidatedEnsemblId {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct UnvalidatedGeneName(String);
+pub struct UnvalidatedGeneName(String);
 
 impl UnvalidatedGeneName {
     #[cfg(test)]

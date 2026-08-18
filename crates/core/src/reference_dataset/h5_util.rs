@@ -8,8 +8,6 @@ use ndarray::{Array1, ArrayView, Dimension};
 use serde::Serialize;
 use strum::VariantNames;
 
-use crate::reference_dataset::error::ReferenceDatasetError;
-
 pub(crate) fn read_container(file: &File, path: &str) -> Result<Container, ReadH5FieldError> {
     let container = match file.group(path) {
         Ok(g) => g.as_container().unwrap(),
@@ -18,7 +16,7 @@ pub(crate) fn read_container(file: &File, path: &str) -> Result<Container, ReadH
             .and_then(|ds| ds.as_container())
             .map_err(|_| ReadH5FieldError::DataTypeOrMissing {
                 field_type: FieldType::Container,
-                path: path.to_owned(),
+                object_path: path.to_owned(),
             })?,
     };
 
@@ -34,7 +32,7 @@ pub(crate) fn read_attribute<T: H5Type>(
         .and_then(|a| a.read_scalar())
         .map_err(|_| ReadH5FieldError::DataTypeOrMissing {
             field_type: FieldType::Attribute,
-            path: path.to_owned(),
+            object_path: path.to_owned(),
         })
 }
 
@@ -45,7 +43,7 @@ pub(crate) fn read_1d_dataset<T: H5Type>(
     file.dataset(path).and_then(|ds| ds.read_1d()).map_err(|_| {
         ReadH5FieldError::DataTypeOrMissing {
             field_type: FieldType::Dataset,
-            path: path.to_owned(),
+            object_path: path.to_owned(),
         }
     })
 }
@@ -58,7 +56,7 @@ pub(crate) fn read_dataset_raw<T: H5Type>(
         .and_then(|ds| ds.read_raw())
         .map_err(|_| ReadH5FieldError::DataTypeOrMissing {
             field_type: FieldType::Dataset,
-            path: path.to_owned(),
+            object_path: path.to_owned(),
         })
 }
 
@@ -71,7 +69,7 @@ pub(crate) fn read_1d_string_dataset(
 
     let encoding_type = StringEncodingType::from_str(&encoding_type).map_err(|_| {
         ReadH5FieldError::UnknownEncodingType {
-            path: path.to_owned(),
+            object_path: path.to_owned(),
             found: encoding_type.to_string(),
             expected: StringEncodingType::VARIANTS,
         }
@@ -98,7 +96,7 @@ fn read_categorical_array(
             if *code == -1 {
                 return Err(ReadH5FieldError::NullValue {
                     index: i,
-                    dataset_path: path.to_owned(),
+                    object_path: path.to_owned(),
                 });
             }
 
@@ -124,7 +122,7 @@ fn read_nullable_string_array(
     {
         return Err(ReadH5FieldError::NullValue {
             index,
-            dataset_path: path.to_owned(),
+            object_path: path.to_owned(),
         });
     }
 
@@ -135,11 +133,18 @@ pub(crate) fn to_ascii<const N: usize>(s: &VarLenUnicode) -> FixedAscii<N> {
     FixedAscii::from_ascii(&s).expect("all strings are ASCII in this context")
 }
 
+pub(crate) fn create_h5_group(file: &File, path: &str) -> Result<Group, CreateH5GroupError> {
+    file.create_group(path).map_err(|e| CreateH5GroupError {
+        object_path: path.to_owned(),
+        reason: e.to_string(),
+    })
+}
+
 pub(crate) fn write_dataset_to_h5_group<'d, A, T, D>(
     group: &Group,
     path: &str,
     data: A,
-) -> Result<(), ReferenceDatasetError>
+) -> Result<(), WriteH5DatasetError>
 where
     A: Into<ArrayView<'d, T, D>>,
     T: H5Type,
@@ -149,8 +154,8 @@ where
         .new_dataset_builder()
         .with_data(data)
         .create(path)
-        .map_err(|e| ReferenceDatasetError::WriteH5Object {
-            path: path.to_owned(),
+        .map_err(|e| WriteH5DatasetError {
+            object_path: path.to_owned(),
             reason: e.to_string(),
         })?;
 
@@ -168,23 +173,40 @@ enum StringEncodingType {
 #[derive(Debug, Clone, Serialize, thiserror::Error)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum ReadH5FieldError {
-    #[error("wrong data type for or missing {field_type} - {path}")]
-    DataTypeOrMissing { field_type: FieldType, path: String },
-    #[error("null value at index {index} - {dataset_path}")]
-    NullValue { index: usize, dataset_path: String },
-    #[error("unknown encoding type {found} at {path} - expected one of {expected:?}")]
+    #[error("wrong data type for or missing {field_type} - {object_path}")]
+    DataTypeOrMissing {
+        field_type: FieldType,
+        object_path: String,
+    },
+    #[error("null value at index {index} - {object_path}")]
+    NullValue { index: usize, object_path: String },
+    #[error("unknown encoding type {found} at {object_path} - expected one of {expected:?}")]
     UnknownEncodingType {
-        path: String,
+        object_path: String,
         found: String,
         expected: &'static [&'static str],
     },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, strum::Display)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
     Attribute,
     Container,
     Dataset,
+}
+
+#[derive(Debug, Clone, Serialize, thiserror::Error)]
+#[error("failed to create H5 group {object_path} - {reason}")]
+pub struct CreateH5GroupError {
+    pub object_path: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, thiserror::Error)]
+#[error("failed to write H5 dataset {object_path} - {reason}")]
+pub struct WriteH5DatasetError {
+    pub object_path: String,
+    pub reason: String,
 }

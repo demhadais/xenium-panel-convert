@@ -5,10 +5,8 @@ use std::{
 
 use anyhow::{Context, anyhow, bail, ensure};
 use camino::{Utf8Path, Utf8PathBuf};
-use serde::Serialize;
 use xenium_panel_convert_core::reference_dataset::{
     columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
-    error::ReferenceDatasetError,
     feature_set::FeatureSet,
     read_reference_dataset, write_reference_dataset,
 };
@@ -49,11 +47,6 @@ pub fn convert_reference_datasets(
                 write_reference_dataset(&output_path(dataset_name), &ds)?;
             }
             Err(errors) => {
-                let errors = DatasetErrors {
-                    path: path.to_owned(),
-                    errors,
-                };
-
                 let error_path = format!("{dataset_name}-errors.json");
                 write_to_file(&errors, &output_path(&error_path))?;
             }
@@ -61,12 +54,6 @@ pub fn convert_reference_datasets(
     }
 
     Ok(())
-}
-
-#[derive(Debug, Serialize)]
-struct DatasetErrors {
-    path: Utf8PathBuf,
-    errors: Vec<ReferenceDatasetError>,
 }
 
 #[derive(Clone, Debug)]

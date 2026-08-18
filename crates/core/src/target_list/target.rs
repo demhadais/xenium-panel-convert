@@ -12,17 +12,17 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-struct UnvalidatedGene {
-    ensembl_id: Option<UnvalidatedEnsemblId>,
-    gene_name: Option<UnvalidatedGeneName>,
+pub struct UnvalidatedGene {
+    pub ensembl_id: Option<UnvalidatedEnsemblId>,
+    pub gene_name: Option<UnvalidatedGeneName>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub(super) struct UnvalidatedTarget {
+pub struct UnvalidatedTarget {
     #[serde(flatten)]
-    gene: UnvalidatedGene,
-    group: Option<String>,
-    priority: Option<String>,
+    pub gene: UnvalidatedGene,
+    pub group: Option<String>,
+    pub priority: Option<String>,
 }
 
 impl UnvalidatedTarget {
@@ -78,9 +78,9 @@ fn parse_priority_field(s: Option<&str>) -> Result<Priority, TargetErrorInner> {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq, Hash)]
-pub(crate) struct ValidGene {
-    pub(crate) ensembl_id: EnsemblId,
-    pub(crate) gene_name: GeneName,
+pub struct ValidGene {
+    pub ensembl_id: EnsemblId,
+    pub gene_name: GeneName,
 }
 
 impl ValidGene {

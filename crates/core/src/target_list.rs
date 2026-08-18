@@ -1,35 +1,30 @@
 use std::collections::{HashMap, HashSet};
 
-use chemistry::{EnsemblId, GeneName, UnvalidatedEnsemblId};
-pub(crate) use error::TargetErrorInner;
-pub use error::TargetErrorSet;
-pub use target::ValidTarget;
-pub(crate) use target::{Priority as TargetPriority, ValidGene};
-pub use xenium_panel_designer::XeniumPanelDesignerGeneList;
-
 use crate::target_list::{
     csv_util::{read_csv_trimmed, rename_fields},
-    target::UnvalidatedTarget,
+    error::{TargetErrorInner, TargetErrors},
+    target::{UnvalidatedTarget, ValidTarget},
 };
+use chemistry::{EnsemblId, GeneName, UnvalidatedEnsemblId};
 
 pub mod chemistry;
 mod csv_util;
-mod error;
-mod target;
-mod xenium_panel_designer;
+pub mod error;
+pub mod target;
+pub mod xenium_panel_designer;
 
 pub fn parse_target_list(
     target_list: &str,
     field_aliases: &HashMap<&str, &str>,
     ensembl_id_to_gene: impl Fn(&UnvalidatedEnsemblId) -> Option<(EnsemblId, GeneName)> + Copy,
-) -> Result<Vec<ValidTarget>, Vec<TargetErrorSet>> {
+) -> Result<Vec<ValidTarget>, Vec<TargetErrors>> {
     const N_GENES: usize = 500;
 
     let mut reader = read_csv_trimmed(target_list);
     // If we can't get headers, just return early
     let headers = reader.headers().map_err(|e| {
-        vec![TargetErrorSet {
-            errors: vec![e.into()],
+        vec![TargetErrors {
+            errors: vec![TargetErrorInner::from(e).into()],
             line_number: None,
             submitted_target: None,
         }]
@@ -47,10 +42,10 @@ pub fn parse_target_list(
         let record = match record {
             Ok(record) => record,
             Err(err) => {
-                errors.push(TargetErrorSet {
+                errors.push(TargetErrors {
                     line_number: None,
                     submitted_target: None,
-                    errors: vec![err.into()],
+                    errors: vec![TargetErrorInner::from(err).into()],
                 });
 
                 continue;
@@ -73,10 +68,10 @@ pub fn parse_target_list(
             Err(row_errors) => row_errors,
         };
 
-        errors.push(TargetErrorSet {
+        errors.push(TargetErrors {
             line_number,
             submitted_target: Some(submitted_target),
-            errors: row_errors,
+            errors: row_errors.into_iter().map(Into::into).collect(),
         });
     }
 
@@ -116,7 +111,7 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(errors.len(), 1, "did not find exactly 1 error");
-        assert_eq!(errors[0].errors, [TargetErrorInner::DuplicateGene]);
+        assert_eq!(errors[0].errors, [TargetErrorInner::DuplicateGene.into()]);
     }
 
     #[test]

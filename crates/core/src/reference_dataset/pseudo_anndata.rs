@@ -1,6 +1,7 @@
+use serde::Serialize;
+
 use crate::reference_dataset::{
-    Barcodes, CellAnnotations, error::ReferenceDatasetError, umi_counts::RawCscUmiCounts,
-    var::Features,
+    Barcodes, CellAnnotations, umi_counts::RawCscUmiCounts, var::Features,
 };
 
 #[derive(Debug)]
@@ -17,13 +18,13 @@ impl PseudoAnndata {
         barcodes: Barcodes,
         cell_annotations: CellAnnotations,
         features: Features,
-    ) -> Result<Self, ReferenceDatasetError> {
+    ) -> Result<Self, ShapeMismatchError> {
         let n_barcodes = barcodes.len();
         let n_annotations = cell_annotations.len();
         let n_features = features.len();
         let counts_shape = counts.shape();
 
-        let err = Err(ReferenceDatasetError::Shape {
+        let err = Err(ShapeMismatchError {
             n_barcodes,
             n_annotations,
             n_features,
@@ -63,4 +64,16 @@ impl PseudoAnndata {
     pub(super) fn features(&self) -> &Features {
         &self.features
     }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, thiserror::Error)]
+#[error(
+    "invalid shape - {n_barcodes} barcodes, {n_annotations} cell annotations, {n_features} \
+     features, counts shape {counts_shape:?}"
+)]
+pub struct ShapeMismatchError {
+    pub n_barcodes: usize,
+    pub n_annotations: usize,
+    pub n_features: usize,
+    pub counts_shape: [i32; 2],
 }
