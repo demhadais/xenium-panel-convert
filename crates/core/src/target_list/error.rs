@@ -55,7 +55,8 @@ pub enum TargetErrorInner {
         correct_fieldname: String,
     },
     #[error(
-        "the gene name corresponding to the Ensembl ID {ensembl_id} is {correct_gene_name} - change either the Ensembl ID or the gene name so they match"
+        "the gene name corresponding to the Ensembl ID {ensembl_id} is {correct_gene_name} - \
+         change either the Ensembl ID or the gene name so they match"
     )]
     EnsemblIdGeneNameMismatch {
         ensembl_id: EnsemblId,

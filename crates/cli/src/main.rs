@@ -41,10 +41,10 @@ enum Command {
     /// Designer.
     ///
     /// The target-list must be a CSV-file with the header:
-    /// "`ensembl_id,gene_name,group,priority`". The column "priority" must be one
-    /// of "`must_have`", "desired", or "backup". A "cleaned" version of the file
-    /// will be saved at <OUTPUT_DIR>/target-list.csv, and the version for the
-    /// panel designer will be saved at
+    /// "`ensembl_id,gene_name,group,priority`". The column "priority" must be
+    /// one of "`must_have`", "desired", or "backup". A "cleaned" version of
+    /// the file will be saved at <OUTPUT_DIR>/target-list.csv, and the
+    /// version for the panel designer will be saved at
     /// <OUTPUT_DIR>/xenium-panel-designer-target-list.csv. If errors are
     /// encountered, they are collected and written to
     /// <OUTPUT_DIR>/target-list-errors.json.

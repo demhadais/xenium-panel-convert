@@ -179,11 +179,13 @@ pub enum ReadH5FieldError {
         object_path: String,
     },
     #[error(
-        "null-value found at index {index} of {object_path} - ensure every element of the array has a value"
+        "null-value found at index {index} of {object_path} - ensure every element of the array \
+         has a value"
     )]
     NullValue { index: usize, object_path: String },
     #[error(
-        "unknown encoding type {found} at {object_path}, expected one of {expected:?} - was scanpy used correctly?"
+        "unknown encoding type {found} at {object_path}, expected one of {expected:?} - was \
+         scanpy used correctly?"
     )]
     UnknownEncodingType {
         object_path: String,

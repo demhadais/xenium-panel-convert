@@ -100,7 +100,7 @@ mod tests {
     use crate::targets::combine_field_aliases;
 
     #[test]
-    fn field_aliases_are_combined_correctly?() {
+    fn field_aliases_are_combined_correctly() {
         let field_aliases = ["alias1", "field1", "alias2", "field2"];
 
         let field_aliases: Vec<(String, String)> = field_aliases

@@ -1,11 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
+use chemistry::{EnsemblId, GeneName, UnvalidatedEnsemblId};
+
 use crate::target_list::{
     csv_util::{read_csv_trimmed, rename_fields},
     error::{TargetErrorInner, TargetErrors},
     target::{UnvalidatedTarget, ValidTarget},
 };
-use chemistry::{EnsemblId, GeneName, UnvalidatedEnsemblId};
 
 pub mod chemistry;
 mod csv_util;

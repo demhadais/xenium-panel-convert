@@ -88,10 +88,7 @@ impl ReferenceDatasetSpec {
                 .with_context(|| format!("failed to parse value '{val}' for key '{key}'"))
         }
 
-        fn get_spec_value<T: FromStr>(
-            spec: &HashMap<&str, &str>,
-            key: &str,
-        ) -> anyhow::Result<T>
+        fn get_spec_value<T: FromStr>(spec: &HashMap<&str, &str>, key: &str) -> anyhow::Result<T>
         where
             Result<T, T::Err>: Context<T, T::Err>,
         {
@@ -115,10 +112,7 @@ impl ReferenceDatasetSpec {
         ]
         .into_iter()
         .collect();
-        let allowed_keys: HashSet<_> = key_aliases
-            .iter()
-            .flat_map(|(s1, s2)| [*s1, *s2])
-            .collect();
+        let allowed_keys: HashSet<_> = key_aliases.iter().flat_map(|(s1, s2)| [*s1, *s2]).collect();
 
         let mut spec = HashMap::with_capacity(6);
 
