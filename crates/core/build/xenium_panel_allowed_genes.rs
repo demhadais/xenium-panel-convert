@@ -4,10 +4,10 @@ use serde::Deserialize;
 
 use crate::common::{parse_gene_list_from_csv, write_map_to_file};
 
-static XENIUM_V1_GENE_LIST: &'static [u8] =
+static XENIUM_V1_GENE_LIST: &[u8] =
     include_bytes!("../xenium-gene-lists/human_and_mouse_2020-A-ref-yesprobe-genes_v1assay.csv");
 
-static XENIUM_PRIME_GENE_LIST: &'static [u8] =
+static XENIUM_PRIME_GENE_LIST: &[u8] =
     include_bytes!("../xenium-gene-lists/human_and_mouse_genes_xenium_prime-yesprobe-genes.csv");
 
 pub(crate) fn write_gene_maps() -> anyhow::Result<()> {
@@ -46,7 +46,7 @@ pub(crate) fn write_gene_maps() -> anyhow::Result<()> {
         write_map_to_file(
             &PathBuf::from(format!("src/target_list/chemistry/{filename}")),
             map_name,
-            &gene_map,
+            gene_map,
         )?;
     }
 
@@ -60,10 +60,10 @@ struct Gene {
     #[serde(rename = "Ensembl ID")]
     ensembl_id: String,
     #[serde(rename = "Gene symbol")]
-    gene_name: String,
+    symbol: String,
 }
 
-fn construct_maps<'a>(gene_list: &'a [Gene]) -> GeneMaps<'a> {
+fn construct_maps(gene_list: &[Gene]) -> GeneMaps<'_> {
     fn insert_gene<'a>(
         ensembl_id: &'a str,
         gene_symbol: &'a str,
@@ -78,12 +78,12 @@ fn construct_maps<'a>(gene_list: &'a [Gene]) -> GeneMaps<'a> {
     for Gene {
         species,
         ensembl_id,
-        gene_name,
+        symbol,
     } in gene_list
     {
         match species.as_str() {
-            "Homo sapiens" => insert_gene(ensembl_id, gene_name, &mut homo_sapiens),
-            "Mus musculus" => insert_gene(ensembl_id, gene_name, &mut mus_musculus),
+            "Homo sapiens" => insert_gene(ensembl_id, symbol, &mut homo_sapiens),
+            "Mus musculus" => insert_gene(ensembl_id, symbol, &mut mus_musculus),
             s => panic!("species {s} not expected"),
         }
     }

@@ -86,8 +86,8 @@ impl ReferenceDatasetSpec {
                                ensembl-id-col=gene_ids\nmatrix.h5ad,b=barcodes,a=annotations,\
                                e=gene_ids";
 
-        fn get_spec_value_default<'a, T: Default + FromStr>(
-            spec: &'a HashMap<&str, &str>,
+        fn get_spec_value_default<T: Default + FromStr>(
+            spec: &HashMap<&str, &str>,
             key: &str,
         ) -> anyhow::Result<T>
         where
@@ -97,12 +97,12 @@ impl ReferenceDatasetSpec {
                 return Ok(T::default());
             };
 
-            T::from_str(*val)
+            T::from_str(val)
                 .with_context(|| format!("failed to parse value '{val}' for key '{key}'"))
         }
 
-        fn get_spec_value<'a, T: FromStr>(
-            spec: &'a HashMap<&str, &str>,
+        fn get_spec_value<T: FromStr>(
+            spec: &HashMap<&str, &str>,
             key: &str,
         ) -> anyhow::Result<T>
         where
@@ -112,7 +112,7 @@ impl ReferenceDatasetSpec {
                 .get(key)
                 .ok_or_else(|| anyhow!("key '{key}' is required"))?;
 
-            T::from_str(*val)
+            T::from_str(val)
                 .with_context(|| format!("failed to parse value '{val}' for key '{key}'"))
         }
 
@@ -126,13 +126,11 @@ impl ReferenceDatasetSpec {
             ("f", "flex"),
             ("r", "rename"),
         ]
-        .clone()
         .into_iter()
         .collect();
         let allowed_keys: HashSet<_> = key_aliases
             .iter()
-            .map(|(s1, s2)| [*s1, *s2])
-            .flatten()
+            .flat_map(|(s1, s2)| [*s1, *s2])
             .collect();
 
         let mut spec = HashMap::with_capacity(6);

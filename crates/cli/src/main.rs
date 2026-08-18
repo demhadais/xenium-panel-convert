@@ -21,8 +21,8 @@ fn main() -> anyhow::Result<()> {
         Command::Targets(options) => convert_target_list(&options, &output_dir),
         Command::References(options) => convert_reference_datasets(&options, &output_dir),
         Command::Submission {
-            targets_options,
-            references_options,
+            targets_options: _,
+            references_options: _,
         } => todo!(),
     }
 }
@@ -41,8 +41,8 @@ enum Command {
     /// Designer.
     ///
     /// The target-list must be a CSV-file with the header:
-    /// "ensembl_id,gene_name,group,priority". The column "priority" must be one
-    /// of "must_have", "desired", or "backup". A "cleaned" version of the file
+    /// "`ensembl_id,gene_name,group,priority`". The column "priority" must be one
+    /// of "`must_have`", "desired", or "backup". A "cleaned" version of the file
     /// will be saved at <OUTPUT_DIR>/target-list.csv, and the version for the
     /// panel designer will be saved at
     /// <OUTPUT_DIR>/xenium-panel-designer-target-list.csv. If errors are
@@ -57,7 +57,7 @@ enum Command {
     /// directory can be fed to tar to create a compressed archive and uploaded
     /// directly to the panel designer as a reference dataset. If errors occur,
     /// they are collected and written to
-    /// <OUTPUT_DIR>/<DATASET_PATH>-errors.json
+    /// <`OUTPUT_DIR`>/<DATASET_PATH>-errors.json
     References(ReferenceDatasetCliOptions),
     /// Convert a target-list and reference datasets to formats suitable for the
     /// Xenium Panel Designer.

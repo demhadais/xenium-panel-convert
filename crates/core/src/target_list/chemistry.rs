@@ -1,3 +1,4 @@
+#![allow(clippy::unreadable_literal)]
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};

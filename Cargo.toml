@@ -30,12 +30,14 @@ thiserror = { version = "2.0.19" }
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
-implicit_hasher = "allow"
+implicit-hasher = "allow"
+missing-errors-doc = "allow"
+missing-panics-doc = "allow"
 
 [workspace.lints.rust]
 unreachable-pub = "warn"
 dead-code-pub-in-binary = "warn"
-elided-lifetime-in-paths = "warn"
+elided-lifetimes-in-paths = "warn"
 
 
 [profile]

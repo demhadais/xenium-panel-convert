@@ -29,7 +29,7 @@ pub(super) fn read_features_from_h5ad(
 
     let [Ok(ensembl_ids), Ok(gene_names), Ok(feature_types)] = features else {
         return Err(VarError::InvalidFields {
-            errors: features.into_iter().filter_map(|res| res.err()).collect(),
+            errors: features.into_iter().filter_map(std::result::Result::err).collect(),
         });
     };
 

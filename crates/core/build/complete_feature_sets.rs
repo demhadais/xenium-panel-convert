@@ -1,3 +1,4 @@
+#![allow(clippy::similar_names)]
 use std::{
     collections::HashSet,
     fmt::Display,
@@ -153,7 +154,7 @@ fn write_flex_gene_lists() -> anyhow::Result<()> {
             .map(|g| {
                 (
                     // These clones are necessary for reasons
-                    g.ensembl_id.to_owned(),
+                    g.ensembl_id.clone(),
                     g.probe_id.split('|').nth(1).map(str::to_owned).unwrap(),
                 )
             })
@@ -162,7 +163,7 @@ fn write_flex_gene_lists() -> anyhow::Result<()> {
         let gene_map = construct_map(genes.iter().map(|(e, g)| (e, g)), expected_n_genes);
 
         let map_path = format!("src/reference_dataset/feature_set/{map_path}");
-        write_map_to_file(&Path::new(&map_path), map_name, &gene_map)?;
+        write_map_to_file(Path::new(&map_path), map_name, &gene_map)?;
     }
 
     Ok(())

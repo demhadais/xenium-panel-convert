@@ -17,7 +17,7 @@ pub struct TargetErrorSet {
 
 #[derive(Clone, Debug, Serialize, PartialEq, thiserror::Error)]
 #[serde(rename_all = "snake_case", tag = "type")]
-pub enum TargetErrorInner {
+pub(crate) enum TargetErrorInner {
     #[error("malformed CSV - {reason}")]
     MalformedCsv {
         reason: String,

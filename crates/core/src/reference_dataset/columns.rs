@@ -10,6 +10,7 @@ impl From<&str> for CellBarcodeCol {
 }
 
 impl CellBarcodeCol {
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -45,6 +46,7 @@ impl From<&str> for CellAnnotationCol {
 }
 
 impl CellAnnotationCol {
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -74,6 +76,7 @@ impl From<&str> for EnsemblIdCol {
 }
 
 impl EnsemblIdCol {
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -109,6 +112,7 @@ impl From<&str> for GeneNameCol {
 }
 
 impl GeneNameCol {
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }

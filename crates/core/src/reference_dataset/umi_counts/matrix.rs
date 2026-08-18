@@ -70,6 +70,7 @@ impl RawCscUmiCounts {
     pub(crate) fn shape(&self) -> [i32; 2] {
         let (nrows, ncols) = self.0.as_matrix().shape();
 
+        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         [nrows as i32, ncols as i32]
     }
 }
@@ -93,6 +94,8 @@ fn validate_counts(mtx: UnvalidatedCscMatrix) -> Result<ValidatedCscMatrix, UmiC
     )))
 }
 
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_sign_loss)]
 fn all_total_counts_are_equal(data: &[i32], indptr: &[i64]) -> Result<bool, UmiCountsError> {
     let n_cells = indptr.len() - 1;
     let mut total_counts = vec![0; n_cells];
@@ -125,6 +128,7 @@ fn f32_to_i32(f: f32) -> Result<i32, UmiCountsError> {
     let is_nonnegative_integral = f.round() == f && f >= 0.0;
 
     if is_nonnegative_integral {
+        #[allow(clippy::cast_possible_truncation)]
         Ok(f as i32)
     } else {
         Err(UmiCountsError::TransformedCounts)

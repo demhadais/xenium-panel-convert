@@ -1,3 +1,4 @@
+#![allow(clippy::unreadable_literal)]
 use crate::reference_dataset::feature_set::{
     grch38_2020_a::GRCH38_2020_A, grch38_2020_a_flex::GRCH38_2020_A_FLEX,
     grch38_2024_a::GRCH38_2024_A, grch38_2024_a_flex_v1_1::GRCH38_2024_A_FLEX_V1_1,
@@ -29,6 +30,7 @@ pub enum FeatureSet {
 }
 
 impl FeatureSet {
+    #[must_use]
     pub fn new(transcriptome: Transcriptome, flex: bool) -> Self {
         match (transcriptome, flex) {
             (Transcriptome::Grch382020A, false) => Self::ThreePrime(&GRCH38_2020_A),
@@ -48,6 +50,7 @@ impl FeatureSet {
         }
     }
 
+    #[must_use]
     pub fn genes(self, n_genes: usize) -> Option<&'static phf::Map<&'static str, &'static str>> {
         match self {
             Self::ThreePrime(genes) | Self::Flex2020A(genes) if n_genes == genes.len() => {

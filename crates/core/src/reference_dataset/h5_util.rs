@@ -102,6 +102,7 @@ fn read_categorical_array(
                 });
             }
 
+            #[allow(clippy::cast_sign_loss)]
             Ok(categories[*code as usize].clone())
         })
         .collect()
@@ -168,15 +169,9 @@ enum StringEncodingType {
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum ReadH5FieldError {
     #[error("wrong data type for or missing {field_type} - {path}")]
-    DataTypeOrMissing {
-        field_type: FieldType,
-        path: String,
-    },
+    DataTypeOrMissing { field_type: FieldType, path: String },
     #[error("null value at index {index} - {dataset_path}")]
-    NullValue {
-        index: usize,
-        dataset_path: String,
-    },
+    NullValue { index: usize, dataset_path: String },
     #[error("unknown encoding type {found} at {path} - expected one of {expected:?}")]
     UnknownEncodingType {
         path: String,
