@@ -128,7 +128,7 @@ pub(super) mod tests {
         xenium_v1_human_ensembl_id_to_gene, xenium_v1_mouse::XENIUM_V1_MOUSE_GENES,
     };
 
-    pub(in crate::target_list) fn tp53_ensembl_id() -> UnvalidatedEnsemblId {
+    pub(crate) fn tp53_ensembl_id() -> UnvalidatedEnsemblId {
         UnvalidatedEnsemblId("ENSG00000141510".to_owned())
     }
 

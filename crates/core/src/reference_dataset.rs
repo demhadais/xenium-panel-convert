@@ -188,7 +188,7 @@ mod tests {
             "test-data/csc_adata.h5ad",
             "test-data/dense_adata.h5ad",
         ]
-        .map(|f| Utf8Path::new(f));
+        .map(Utf8Path::new);
 
         let mut fake_counts = Vec::with_capacity(paths.len());
 

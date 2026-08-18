@@ -18,7 +18,7 @@ type UnvalidatedCscMatrix = CscMatrix<f32>;
 type ValidatedCscMatrix = CscMatrix<i32>;
 
 #[derive(Clone, Debug, PartialEq)]
-pub(in crate::reference_dataset) struct RawCscUmiCounts(ValidatedCscMatrix);
+pub(crate) struct RawCscUmiCounts(ValidatedCscMatrix);
 
 impl RawCscUmiCounts {
     pub(super) fn from_sparse_matrix(
@@ -55,19 +55,19 @@ impl RawCscUmiCounts {
         }
     }
 
-    pub(in crate::reference_dataset) fn data(&self) -> &[i32] {
+    pub(crate) fn data(&self) -> &[i32] {
         self.0.as_matrix().data()
     }
 
-    pub(in crate::reference_dataset) fn indices(&self) -> &[i64] {
+    pub(crate) fn indices(&self) -> &[i64] {
         self.0.as_matrix().indices()
     }
 
-    pub(in crate::reference_dataset) fn indptr(&self) -> Cow<'_, [i64]> {
+    pub(crate) fn indptr(&self) -> Cow<'_, [i64]> {
         self.0.as_matrix().proper_indptr()
     }
 
-    pub(in crate::reference_dataset) fn shape(&self) -> [i32; 2] {
+    pub(crate) fn shape(&self) -> [i32; 2] {
         let (nrows, ncols) = self.0.as_matrix().shape();
 
         #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
@@ -157,6 +157,7 @@ mod tests {
         Matrix::csc_from_dense(counts().view(), 0.)
     }
 
+    #[allow(clippy::similar_names)]
     #[test]
     fn storage_orders_are_equivalent() {
         let csr = csr();
