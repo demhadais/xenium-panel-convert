@@ -29,11 +29,7 @@ pub(crate) fn convert_reference_datasets(
         rename,
     } in reference_datasets
     {
-        let dataset_name = rename
-            .as_deref()
-            .and_then(Utf8Path::file_stem)
-            .or(path.file_stem())
-            .ok_or_else(|| anyhow!("invalid filename: {}", rename.as_ref().unwrap_or(path)))?;
+        let dataset_name = dataset_name(path, rename.as_deref())?;
 
         match read_reference_dataset(
             path,
@@ -54,6 +50,13 @@ pub(crate) fn convert_reference_datasets(
     }
 
     Ok(())
+}
+
+fn dataset_name<'a>(path: &'a Utf8Path, rename: Option<&'a Utf8Path>) -> anyhow::Result<&'a str> {
+    rename
+        .and_then(Utf8Path::file_stem)
+        .or_else(|| path.file_stem())
+        .ok_or_else(|| anyhow!("invalid filename: {}", rename.unwrap_or(path)))
 }
 
 #[derive(Clone, Debug)]
@@ -160,4 +163,73 @@ impl ReferenceDatasetSpec {
 pub(crate) struct ReferenceDatasetCliOptions {
     #[clap(value_parser = ReferenceDatasetSpec::parse_commandline)]
     reference_datasets: Vec<ReferenceDatasetSpec>,
+}
+
+#[cfg(test)]
+mod tests {
+    use camino::Utf8Path;
+    use xenium_panel_convert_core::reference_dataset::feature_set::FeatureSet;
+
+    use crate::reference_datasets::{ReferenceDatasetSpec, dataset_name};
+
+    #[test]
+    fn spec_parses_positional_path_and_aliases() {
+        let spec = ReferenceDatasetSpec::parse_commandline(
+            "matrix.h5ad,b=barcodes,a=annotations,e=ids,g=names,t=h2020,r=renamed.h5ad",
+        )
+        .unwrap();
+
+        assert_eq!(spec.path.as_str(), "matrix.h5ad");
+        assert_eq!(spec.cell_barcode_col, "barcodes".into());
+        assert_eq!(spec.cell_annotation_col, "annotations".into());
+        assert_eq!(spec.ensembl_id_col, "ids".into());
+        assert_eq!(spec.gene_name_col, "names".into());
+        assert_eq!(spec.rename.as_deref(), Some(Utf8Path::new("renamed.h5ad")));
+        assert!(matches!(spec.transcriptome, FeatureSet::ThreePrime(_)));
+    }
+
+    #[test]
+    fn spec_applies_column_defaults() {
+        let spec = ReferenceDatasetSpec::parse_commandline(
+            "path=matrix.h5ad,annotation-col=annotations,transcriptome=m2020",
+        )
+        .unwrap();
+
+        assert_eq!(spec.cell_barcode_col, "_index".into());
+        assert_eq!(spec.ensembl_id_col, "gene_ids".into());
+        assert_eq!(spec.gene_name_col, "_index".into());
+        assert_eq!(spec.rename, None);
+    }
+
+    #[test]
+    fn spec_rejects_malformed_specs() {
+        let malformed = [
+            "matrix.h5ad,a=annotations,t=h2020,unknown=whatever",
+            "p=matrix.h5ad,path=other.h5ad,a=annotations,t=h2020",
+            "matrix.h5ad,a=annotations,t=h2020,bare-value",
+            "matrix.h5ad,t=h2020",
+            "matrix.h5ad,a=annotations",
+            "matrix.h5ad,a=annotations,t=not-a-transcriptome",
+        ];
+
+        for spec in malformed {
+            assert!(
+                ReferenceDatasetSpec::parse_commandline(spec).is_err(),
+                "'{spec}' should not have parsed"
+            );
+        }
+    }
+
+    #[test]
+    fn dataset_names_come_from_file_stems() {
+        let path = Utf8Path::new("datasets/matrix.h5ad");
+
+        assert_eq!(dataset_name(path, None).unwrap(), "matrix");
+        assert_eq!(
+            dataset_name(path, Some(Utf8Path::new("elsewhere/renamed.h5ad"))).unwrap(),
+            "renamed",
+            "rename should take precedence over the dataset's path"
+        );
+        assert!(dataset_name(Utf8Path::new(".."), None).is_err());
+    }
 }

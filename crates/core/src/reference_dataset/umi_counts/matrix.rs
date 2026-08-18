@@ -228,4 +228,14 @@ mod tests {
             Err(UmiCountsError::TransformedCounts)
         );
     }
+
+    #[test]
+    fn negative_counts_error() {
+        let counts = array![[-1., 2., 3.], [4., 5., 6.]];
+
+        std::assert_matches!(
+            RawCscUmiCounts::from_dense_matrix(&counts, DenseEncodingType::Array),
+            Err(UmiCountsError::TransformedCounts)
+        );
+    }
 }

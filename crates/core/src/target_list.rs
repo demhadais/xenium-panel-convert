@@ -91,7 +91,38 @@ mod tests {
         TargetErrorInner,
         chemistry::{tests::tp53_ensembl_id, xenium_v1_human_ensembl_id_to_gene},
         parse_target_list,
+        target::Priority,
     };
+
+    #[test]
+    fn valid_target_list() {
+        let gene_list = "ensembl_id,gene_name,group,priority\nENSG00000141510,TP53,group0,\
+                         must_have\nENSG00000116678,LEPR,group0,desired\nENSG00000120802,TMPO,\
+                         group1,backup";
+
+        let targets = parse_target_list(
+            gene_list,
+            &HashMap::new(),
+            xenium_v1_human_ensembl_id_to_gene,
+        )
+        .unwrap();
+
+        let gene_names: Vec<_> = targets
+            .iter()
+            .map(|t| t.gene.gene_name.to_string())
+            .collect();
+        assert_eq!(
+            gene_names,
+            ["TP53", "LEPR", "TMPO"],
+            "targets were not returned in the order they were submitted"
+        );
+
+        let priorities: Vec<_> = targets.iter().map(|t| t.priority).collect();
+        assert_eq!(
+            priorities,
+            [Priority::MustHave, Priority::Desired, Priority::Backup]
+        );
+    }
 
     #[test]
     fn duplicate_targets() {

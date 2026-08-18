@@ -10,7 +10,7 @@ use strum::VariantNames;
 
 pub(super) fn read_container(file: &File, path: &str) -> Result<Container, ReadH5FieldError> {
     let container = match file.group(path) {
-        Ok(g) => g.as_container().unwrap(),
+        Ok(g) => g.as_container().expect("a group should be a container"),
         Err(_) => file
             .dataset(path)
             .and_then(|ds| ds.as_container())
@@ -173,7 +173,10 @@ enum StringEncodingType {
 #[derive(Debug, Clone, Serialize, thiserror::Error)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum ReadH5FieldError {
-    #[error("ensure that {object_path} exists and is a {field_type} - was scanpy used correctly?")]
+    #[error(
+        "ensure that {object_path} exists and is a {field_type} - was the correct column-name \
+         provided?"
+    )]
     DataTypeOrMissing {
         field_type: FieldType,
         object_path: String,
@@ -215,4 +218,27 @@ pub struct CreateH5GroupError {
 pub struct WriteH5DatasetError {
     pub object_path: String,
     pub reason: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use hdf5_metno::{File, types::VarLenUnicode};
+    use ndarray::Array1;
+
+    use crate::reference_dataset::h5_util::{ReadH5FieldError, read_1d_string_dataset};
+
+    fn read_obs_column(column: &str) -> Result<Array1<VarLenUnicode>, ReadH5FieldError> {
+        let file = File::open("test-data/csr_adata.h5ad").unwrap();
+
+        read_1d_string_dataset(&file, &format!("obs/{column}"))
+    }
+
+    #[test]
+    fn unannotated_cells_are_rejected() {
+        std::assert_matches!(
+            read_obs_column("annotation_missing").unwrap_err(),
+            ReadH5FieldError::NullValue { index: 9, .. },
+            "the missing value in obs/annotation_missing was not reported"
+        );
+    }
 }

@@ -160,6 +160,8 @@ pub struct ValidTarget {
 
 #[cfg(test)]
 mod tests {
+    use strum::VariantNames;
+
     use crate::target_list::{
         TargetErrorInner,
         chemistry::{
@@ -167,8 +169,67 @@ mod tests {
             xenium_v1_human_ensembl_id_to_gene,
         },
         csv_util::read_csv_trimmed,
-        target::{UnvalidatedGene, UnvalidatedTarget, ValidGene},
+        target::{Priority, UnvalidatedGene, UnvalidatedTarget, ValidGene},
     };
+
+    #[test]
+    fn valid_target() {
+        let target = UnvalidatedTarget {
+            gene: UnvalidatedGene {
+                ensembl_id: Some(tp53_ensembl_id()),
+                gene_name: Some(UnvalidatedGeneName::new("TP53".to_owned())),
+            },
+            group: Some("Group0".to_owned()),
+            priority: Some("must_have".to_owned()),
+        };
+
+        let valid_target = target.validate(xenium_v1_human_ensembl_id_to_gene).unwrap();
+
+        assert_eq!(valid_target.group, "group0", "group was not lowercased");
+    }
+
+    #[test]
+    fn validate_collects_every_error_in_a_row() {
+        let target = UnvalidatedTarget {
+            gene: UnvalidatedGene {
+                ensembl_id: None,
+                gene_name: None,
+            },
+            group: None,
+            priority: Some("urgent".to_owned()),
+        };
+
+        let errors = target
+            .validate(xenium_v1_human_ensembl_id_to_gene)
+            .unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                TargetErrorInner::MissingField { fieldname: "group" },
+                TargetErrorInner::InvalidPriority {
+                    value: "urgent".to_owned(),
+                    allowed: Priority::VARIANTS,
+                },
+                TargetErrorInner::NoEnsemblId,
+            ],
+            "every error in a row should be reported, not just the first"
+        );
+    }
+
+    #[test]
+    fn no_ensembl_id() {
+        let err = ValidGene::from_unvalidated(
+            &UnvalidatedGene {
+                ensembl_id: None,
+                gene_name: Some(UnvalidatedGeneName::new("TP53".to_owned())),
+            },
+            xenium_v1_human_ensembl_id_to_gene,
+        )
+        .unwrap_err();
+
+        assert_eq!(err, TargetErrorInner::NoEnsemblId);
+    }
 
     #[test]
     fn valid_gene() {
@@ -184,7 +245,7 @@ mod tests {
 
     #[test]
     fn unvalidated_target_deserializes_with_invalid_fields() {
-        let data = "field1,field2,ensembl_id\nvalue1,value2,id";
+        let data = "field,ensembl_id\nvalue2,id";
         let mut reader = read_csv_trimmed(data);
 
         let fieldnames = reader.headers().unwrap().clone();
@@ -258,20 +319,6 @@ mod tests {
                 }),
             }
         );
-    }
-
-    #[test]
-    fn unavailable_ensembl_id_is_gene_not_found() {
-        let err = ValidGene::from_unvalidated(
-            &UnvalidatedGene {
-                ensembl_id: Some(UnvalidatedEnsemblId::new("ENSG00000273816".to_owned())),
-                gene_name: Some(UnvalidatedGeneName::new(String::new())),
-            },
-            xenium_v1_human_ensembl_id_to_gene,
-        )
-        .unwrap_err();
-
-        assert_eq!(err, TargetErrorInner::GeneNotFound);
     }
 
     #[test]

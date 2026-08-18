@@ -84,7 +84,7 @@ pub enum WriteReferenceDatasetError {
 }
 
 #[derive(Clone, Debug, Serialize, thiserror::Error)]
-#[error("{error}\nhint: {hint}")]
+#[error("{error}")]
 pub struct ReadReferenceDatasetErrorWrapper {
     pub error: ReadReferenceDatasetError,
     pub hint: String,
@@ -100,7 +100,7 @@ impl From<ReadReferenceDatasetError> for ReadReferenceDatasetErrorWrapper {
 }
 
 #[derive(Clone, Debug, Serialize, thiserror::Error)]
-#[error("{error}\nhint: {hint}")]
+#[error("{error}")]
 pub struct WriteReferenceDatasetErrorWrapper {
     pub error: WriteReferenceDatasetError,
     pub hint: String,

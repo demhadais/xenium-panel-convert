@@ -43,3 +43,63 @@ impl From<ReadH5FieldError> for ObsError {
         Self::MalformedObs { error }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use hdf5_metno::{File, types::FixedAscii};
+    use ndarray::Array1;
+
+    use crate::reference_dataset::{
+        columns::CellBarcodeCol,
+        h5_util::{FieldType, ReadH5FieldError},
+        obs::{ObsError, read_cell_annotations_from_h5ad, read_cell_barcodes_from_h5ad},
+    };
+
+    fn generated_h5ad() -> File {
+        File::open("test-data/csr_adata.h5ad").unwrap()
+    }
+
+    #[test]
+    fn reads_barcodes_and_annotations() {
+        let file = generated_h5ad();
+
+        let barcodes = read_cell_barcodes_from_h5ad(&file, &"barcode".into()).unwrap();
+        let expected_barcodes: Array1<FixedAscii<64>> = (0..10)
+            .map(|i| FixedAscii::from_ascii(&format!("cell_{i}")).unwrap())
+            .collect();
+        assert_eq!(barcodes, expected_barcodes);
+
+        let annotations = read_cell_annotations_from_h5ad(&file, &"annotation".into()).unwrap();
+        let expected_annotations: Vec<_> = (0..10).map(|i| format!("group{}", i % 2)).collect();
+        assert_eq!(annotations.to_vec(), expected_annotations);
+    }
+
+    #[test]
+    fn default_barcode_column_reads_the_anndata_index() {
+        let file = generated_h5ad();
+
+        let from_index = read_cell_barcodes_from_h5ad(&file, &CellBarcodeCol::default()).unwrap();
+        let from_column = read_cell_barcodes_from_h5ad(&file, &"barcode".into()).unwrap();
+
+        assert_eq!(
+            from_index, from_column,
+            "the default barcode column should read anndata's index"
+        );
+    }
+
+    #[test]
+    fn missing_column_is_an_error() {
+        let err =
+            read_cell_annotations_from_h5ad(&generated_h5ad(), &"nonexistent".into()).unwrap_err();
+
+        std::assert_matches!(
+            err,
+            ObsError::MalformedObs {
+                error: ReadH5FieldError::DataTypeOrMissing {
+                    field_type: FieldType::Container,
+                    ..
+                }
+            }
+        );
+    }
+}

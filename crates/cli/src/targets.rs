@@ -97,7 +97,17 @@ fn combine_field_aliases<'a>(
 
 #[cfg(test)]
 mod tests {
-    use crate::targets::combine_field_aliases;
+    use crate::targets::{combine_field_aliases, parse_field_aliases};
+
+    #[test]
+    fn field_aliases_must_use_equals() {
+        assert_eq!(
+            parse_field_aliases("alias=field").unwrap(),
+            ("alias".to_owned(), "field".to_owned())
+        );
+
+        assert!(parse_field_aliases("alias").is_err());
+    }
 
     #[test]
     fn field_aliases_are_combined_correctly() {

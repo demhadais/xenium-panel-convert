@@ -38,11 +38,14 @@ pub(super) fn read_features_from_h5ad(
 
     check_feature_array_lens(&ensembl_ids, &gene_names, &feature_types)?;
 
-    check_feature_set(
-        &ensembl_ids,
-        &gene_names,
-        expected_feature_set.genes(ensembl_ids.len()),
-    )?;
+    let Some(expected_genes) = expected_feature_set.genes(ensembl_ids.len()) else {
+        return Err(VarError::FilteredGenes {
+            n_expected_genes: expected_feature_set.n_genes(),
+            n_found_genes: ensembl_ids.len(),
+        });
+    };
+
+    check_feature_set(&ensembl_ids, &gene_names, expected_genes)?;
 
     Ok(Features {
         ensembl_ids: ensembl_ids.mapv_into_any(|s| to_ascii(&s)),
@@ -70,16 +73,12 @@ fn check_feature_array_lens(
 fn check_feature_set(
     ensembl_ids: &Array1<VarLenUnicode>,
     gene_names: &Array1<VarLenUnicode>,
-    expected_features: Option<&phf::Map<&str, &str>>,
+    expected_features: &phf::Map<&str, &str>,
 ) -> Result<(), VarError> {
     let err = Err(VarError::UnexpectedFeatureSet {
         detail: "the set of features in the dataset must be the exact same as the unfiltered \
                  features of a cellranger output",
     });
-
-    let Some(expected_features) = expected_features else {
-        return err;
-    };
 
     let mut seen = HashSet::with_capacity(ensembl_ids.len());
 
@@ -144,8 +143,13 @@ impl Features {
 pub enum VarError {
     #[error("one or more fields in var were improperly formatted - was scanpy used correctly?")]
     InvalidFields { errors: Vec<ReadH5FieldError> },
-    #[error("unexpected feature set: {detail} - do not filter any genes in dataset")]
+    #[error("unexpected feature set: {detail} - were any genes filtered?")]
     UnexpectedFeatureSet { detail: &'static str },
+    #[error("some genes were filtered out of the dataset - expected: {}, found: {n_found_genes}", n_expected_genes.1.map(|n1| format!("{} or {n1}", n_expected_genes.0)).unwrap_or(n_expected_genes.0.to_string()))]
+    FilteredGenes {
+        n_expected_genes: (usize, Option<usize>),
+        n_found_genes: usize,
+    },
     #[error(
         "invalid shapes: {ensembl_ids_len} Ensembl IDs, {gene_names_len} gene names, \
          {feature_types_len} feature types - expected them all to be the same"
@@ -155,4 +159,55 @@ pub enum VarError {
         gene_names_len: usize,
         feature_types_len: usize,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use hdf5_metno::File;
+
+    use crate::reference_dataset::{
+        feature_set::{FeatureSet, Transcriptome},
+        var::{VarError, read_features_from_h5ad},
+    };
+
+    fn read_generated_features(
+        ensembl_id_col: &str,
+        gene_name_col: &str,
+    ) -> Result<super::Features, VarError> {
+        read_features_from_h5ad(
+            &File::open("test-data/csr_adata.h5ad").unwrap(),
+            &ensembl_id_col.into(),
+            &gene_name_col.into(),
+            FeatureSet::new(Transcriptome::Grch382020A, false),
+        )
+    }
+
+    #[test]
+    fn filtered_genes_are_rejected() {
+        // The generated datasets have 100 genes
+        let err = read_generated_features("ensembl_id", "gene_name").unwrap_err();
+
+        std::assert_matches!(
+            err,
+            VarError::FilteredGenes {
+                n_found_genes: 100,
+                ..
+            }
+        );
+    }
+
+    #[test]
+    fn missing_var_columns_are_collected() {
+        let err = read_generated_features("nonexistent", "also_nonexistent").unwrap_err();
+
+        let VarError::InvalidFields { errors } = err else {
+            panic!("expected invalid fields, got {err:?}");
+        };
+
+        assert_eq!(
+            errors.len(),
+            2,
+            "both missing columns in var should be reported"
+        );
+    }
 }

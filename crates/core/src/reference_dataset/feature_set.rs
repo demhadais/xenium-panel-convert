@@ -51,6 +51,15 @@ impl FeatureSet {
     }
 
     #[must_use]
+    pub(super) fn n_genes(&self) -> (usize, Option<usize>) {
+        match self {
+            Self::ThreePrime(genes) | Self::Flex2020A(genes) => (genes.len(), None),
+            Self::Flex2024A { v1, v2 } if v1.len() == v2.len() => (v1.len(), None),
+            Self::Flex2024A { v1, v2 } => (v1.len(), Some(v2.len())),
+        }
+    }
+
+    #[must_use]
     pub(super) fn genes(
         self,
         n_genes: usize,
@@ -76,7 +85,7 @@ impl FeatureSet {
     }
 }
 
-#[derive(Debug, Clone, Copy, strum::EnumString)]
+#[derive(Debug, Clone, Copy, PartialEq, strum::EnumString)]
 pub enum Transcriptome {
     #[strum(
         serialize = "GRCh38-2020-A",
@@ -98,4 +107,47 @@ pub enum Transcriptome {
         ascii_case_insensitive
     )]
     Grcm392024A,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::reference_dataset::feature_set::{
+        FeatureSet, Transcriptome, grch38_2020_a::GRCH38_2020_A,
+        grch38_2024_a_flex_v1_1::GRCH38_2024_A_FLEX_V1_1,
+        grch38_2024_a_flex_v2_0::GRCH38_2024_A_FLEX_V2_0,
+        grcm39_2024_a_flex_v2_0::GRCM39_2024_A_FLEX_V2_0,
+    };
+
+    #[test]
+    fn genes_are_selected_by_count() {
+        let three_prime = FeatureSet::new(Transcriptome::Grch382020A, false);
+
+        assert!(
+            three_prime.genes(100).is_none(),
+            "a dataset with the wrong number of genes should match no feature-set"
+        );
+        assert_eq!(
+            three_prime.genes(GRCH38_2020_A.len()).unwrap(),
+            &GRCH38_2020_A
+        );
+
+        let human_flex = FeatureSet::new(Transcriptome::Grch382024A, true);
+
+        assert_eq!(
+            human_flex.genes(GRCH38_2024_A_FLEX_V1_1.len()).unwrap(),
+            &GRCH38_2024_A_FLEX_V1_1
+        );
+        assert_eq!(
+            human_flex.genes(GRCH38_2024_A_FLEX_V2_0.len()).unwrap(),
+            &GRCH38_2024_A_FLEX_V2_0
+        );
+
+        let mouse_flex = FeatureSet::new(Transcriptome::Grcm392024A, true);
+
+        assert_eq!(
+            mouse_flex.genes(GRCM39_2024_A_FLEX_V2_0.len()).unwrap(),
+            &GRCM39_2024_A_FLEX_V2_0,
+            "expected v2.0.0 when both probe-sets have the same number of genes"
+        );
+    }
 }

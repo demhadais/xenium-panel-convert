@@ -16,7 +16,7 @@ pub struct TargetErrors {
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, thiserror::Error)]
-#[error("{error}\nhint: {hint}")]
+#[error("{error}")]
 pub struct TargetErrorWrapper {
     pub error: TargetErrorInner,
     pub hint: String,

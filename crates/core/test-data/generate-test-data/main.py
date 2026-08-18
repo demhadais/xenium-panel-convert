@@ -1,5 +1,6 @@
 import anndata as ad
 import numpy as np
+import pandas as pd
 import scanpy as sc
 from scipy.sparse import csc_matrix, csr_matrix
 
@@ -129,6 +130,9 @@ def main():
         adata.obs_names = [f"cell_{i}" for i in range(n_cells)]
         adata.obs["barcode"] = adata.obs_names
         adata.obs["annotation"] = [f"group{i % 2}" for i in range(len(adata.obs.index))]
+
+        unannotated_cell = list(adata.obs["annotation"])[:-1] + [None]
+        adata.obs["annotation_missing"] = unannotated_cell
 
         adata.var_names = list(gene_names)
         adata.var["ensembl_id"] = list(ensembl_ids)

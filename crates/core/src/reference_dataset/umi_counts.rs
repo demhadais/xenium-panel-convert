@@ -126,12 +126,7 @@ mod tests {
 
         for f in files {
             let filename = f.filename();
-            let counts = read_umi_counts_from_h5ad(&f).unwrap_or_else(|e| {
-                panic!(
-                    "failed to read UMI counts from {filename}: {}",
-                    serde_json::to_string(&e).unwrap()
-                )
-            });
+            let counts = read_umi_counts_from_h5ad(&f).unwrap();
 
             if filename.contains("adata") {
                 assert_eq!(
