@@ -70,24 +70,22 @@ fn read_x_dense(
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum UmiCountsError {
     #[error(transparent)]
-    MalformedCounts {
-        error: ReadH5FieldError,
-    },
-    #[error("unknown encoding type {found} - expected one of {expected:?}")]
+    MalformedCounts { error: ReadH5FieldError },
+    #[error(
+        "unknown encoding type {found}, expected one of {expected:?} - was scanpy used correctly?"
+    )]
     UnknownEncodingType {
         found: String,
         expected: &'static [&'static str],
     },
-    #[error("empty counts")]
+    #[error("empty counts - was scanpy used correctly?")]
     EmptyCounts,
-    #[error("transformed counts")]
+    #[error("transformed counts - use raw, untransformed counts")]
     TransformedCounts,
-    #[error("normalized counts")]
+    #[error("normalized counts - use raw, untransformed, unnormalized counts")]
     NormalizedCounts,
-    #[error("malformed matrix - {reason}")]
-    MalformedMatrix {
-        reason: String,
-    },
+    #[error("malformed matrix: {reason} - was scanpy used correctly?")]
+    MalformedMatrix { reason: String },
 }
 
 impl From<ReadH5FieldError> for UmiCountsError {

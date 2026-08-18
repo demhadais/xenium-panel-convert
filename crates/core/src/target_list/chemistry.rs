@@ -8,6 +8,20 @@ mod xenium_prime_mouse;
 mod xenium_v1_human;
 mod xenium_v1_mouse;
 
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
+pub enum Species {
+    HomoSapiens,
+    MusMusculus,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
+pub enum Chemistry {
+    V1,
+    Prime,
+}
+
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EnsemblId(&'static str);
 

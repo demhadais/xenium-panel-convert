@@ -250,21 +250,21 @@ mod tests {
         assert_eq!(
             original_counts.as_slice().unwrap(),
             reconstructed_dataset.counts().data(),
-            "UMI counts were not correctly reconstructed"
+            "UMI counts were not correctly? reconstructed"
         );
 
         let original_indices = read_1d_dataset::<i64>(&original_h5, "matrix/indices").unwrap();
         assert_eq!(
             original_indices.as_slice().unwrap(),
             reconstructed_dataset.counts().indices(),
-            "UMI count indices were not correctly reconstructed"
+            "UMI count indices were not correctly? reconstructed"
         );
 
         let original_indptr = read_1d_dataset::<i64>(&original_h5, "matrix/indptr").unwrap();
         assert_eq!(
             original_indptr.as_slice().unwrap(),
             reconstructed_dataset.counts().indptr().iter().as_slice(),
-            "UMI counts indptr was not correctly reconstructed"
+            "UMI counts indptr was not correctly? reconstructed"
         );
 
         let original_barcodes =

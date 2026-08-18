@@ -29,7 +29,10 @@ pub(super) fn read_features_from_h5ad(
 
     let [Ok(ensembl_ids), Ok(gene_names), Ok(feature_types)] = features else {
         return Err(VarError::InvalidFields {
-            errors: features.into_iter().filter_map(std::result::Result::err).collect(),
+            errors: features
+                .into_iter()
+                .filter_map(std::result::Result::err)
+                .collect(),
         });
     };
 
@@ -139,20 +142,13 @@ impl Features {
 #[derive(Clone, Serialize, Debug, thiserror::Error)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum VarError {
+    #[error("one or more fields in var were improperly formatted - was scanpy used correctly?")]
+    InvalidFields { errors: Vec<ReadH5FieldError> },
+    #[error("unexpected feature set: {detail} - do not filter any genes in dataset")]
+    UnexpectedFeatureSet { detail: &'static str },
     #[error(
-        "invalid fields - {}",
-        errors.iter().map(ToString::to_string).collect::<Vec<_>>().join("; ")
-    )]
-    InvalidFields {
-        errors: Vec<ReadH5FieldError>,
-    },
-    #[error("unexpected feature set - {detail}")]
-    UnexpectedFeatureSet {
-        detail: &'static str,
-    },
-    #[error(
-        "invalid shapes - {ensembl_ids_len} Ensembl IDs, {gene_names_len} gene names, \
-         {feature_types_len} feature types"
+        "invalid shapes: {ensembl_ids_len} Ensembl IDs, {gene_names_len} gene names, \
+         {feature_types_len} feature types - expected them all to be the same"
     )]
     InvalidShapes {
         ensembl_ids_len: usize,

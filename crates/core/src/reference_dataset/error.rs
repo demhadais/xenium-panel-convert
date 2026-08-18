@@ -15,26 +15,16 @@ use crate::{
 #[derive(Clone, Debug, Serialize, thiserror::Error)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ReadReferenceDatasetError {
-    #[error("invalid H5 file - {reason}")]
-    InvalidH5File {
-        reason: String,
-    },
+    #[error("ensure the H5AD is properly formatted")]
+    InvalidH5File { reason: String },
     #[error(transparent)]
-    UmiCounts {
-        error: UmiCountsError,
-    },
+    UmiCounts { error: UmiCountsError },
     #[error(transparent)]
-    Obs {
-        error: ObsError,
-    },
+    Obs { error: ObsError },
     #[error(transparent)]
-    Var {
-        error: VarError,
-    },
+    Var { error: VarError },
     #[error(transparent)]
-    Shape {
-        error: ShapeMismatchError,
-    },
+    Shape { error: ShapeMismatchError },
 }
 
 impl From<UmiCountsError> for ReadReferenceDatasetError {
@@ -75,44 +65,36 @@ where
 #[derive(Clone, Debug, Serialize, thiserror::Error)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WriteReferenceDatasetError {
-    #[error("failed to create output directory {path} - {reason}")]
-    CreateOutputDir {
-        path: Utf8PathBuf,
-        reason: String,
-    },
-    #[error("failed to create {path} - {reason}")]
-    CreateMatrixFile {
-        path: Utf8PathBuf,
-        reason: String,
-    },
-    #[error("{path} - {error}")]
+    #[error("failed to create output directory - {reason}")]
+    CreateOutputDir { path: Utf8PathBuf, reason: String },
+    #[error("failed to create matrix.h5 - {reason}")]
+    CreateMatrixFile { path: Utf8PathBuf, reason: String },
+    #[error("{error}")]
     CreateH5Group {
         path: Utf8PathBuf,
         error: CreateH5GroupError,
     },
-    #[error("{path} - {error}")]
+    #[error("{error}")]
     WriteH5Dataset {
         path: Utf8PathBuf,
         error: WriteH5DatasetError,
     },
-    #[error("cannot overwrite {path}")]
-    AnnotationsCsvExists {
-        path: Utf8PathBuf,
-    },
+    #[error("cannot overwrite {path} - move or delete the existing annotation.csv file")]
+    AnnotationsCsvExists { path: Utf8PathBuf },
 }
 
 #[derive(Clone, Debug, Serialize, thiserror::Error)]
 #[error("{error}\nhint: {hint}")]
 pub struct ReadReferenceDatasetErrorWrapper {
     pub error: ReadReferenceDatasetError,
-    pub hint: &'static str,
+    pub hint: String,
 }
 
 impl From<ReadReferenceDatasetError> for ReadReferenceDatasetErrorWrapper {
     fn from(error: ReadReferenceDatasetError) -> Self {
         Self {
+            hint: error.to_string(),
             error,
-            hint: todo!(),
         }
     }
 }
@@ -121,14 +103,14 @@ impl From<ReadReferenceDatasetError> for ReadReferenceDatasetErrorWrapper {
 #[error("{error}\nhint: {hint}")]
 pub struct WriteReferenceDatasetErrorWrapper {
     pub error: WriteReferenceDatasetError,
-    pub hint: &'static str,
+    pub hint: String,
 }
 
 impl From<WriteReferenceDatasetError> for WriteReferenceDatasetErrorWrapper {
     fn from(error: WriteReferenceDatasetError) -> Self {
         Self {
+            hint: error.to_string(),
             error,
-            hint: todo!(),
         }
     }
 }

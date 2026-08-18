@@ -2,16 +2,14 @@ use std::{collections::HashMap, fs};
 
 use anyhow::{Context, anyhow};
 use camino::{Utf8Path, Utf8PathBuf};
-use xenium_panel_convert_core::{
-    Chemistry, Species,
-    target_list::{
-        XeniumPanelDesignerGeneList,
-        chemistry::{
-            xenium_prime_human_ensembl_id_to_gene, xenium_prime_mouse_ensembl_id_to_gene,
-            xenium_v1_human_ensembl_id_to_gene, xenium_v1_mouse_ensembl_id_to_gene,
-        },
-        parse_target_list,
+use xenium_panel_convert_core::target_list::{
+    chemistry::{
+        Chemistry, Species, xenium_prime_human_ensembl_id_to_gene,
+        xenium_prime_mouse_ensembl_id_to_gene, xenium_v1_human_ensembl_id_to_gene,
+        xenium_v1_mouse_ensembl_id_to_gene,
     },
+    parse_target_list,
+    xenium_panel_designer::XeniumPanelDesignerGeneList,
 };
 
 use crate::write::write_to_file;
@@ -102,7 +100,7 @@ mod tests {
     use crate::targets::combine_field_aliases;
 
     #[test]
-    fn field_aliases_are_combined_correctly() {
+    fn field_aliases_are_combined_correctly?() {
         let field_aliases = ["alias1", "field1", "alias2", "field2"];
 
         let field_aliases: Vec<(String, String)> = field_aliases

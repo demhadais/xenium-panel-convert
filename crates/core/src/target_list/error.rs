@@ -3,7 +3,7 @@ use serde::Serialize;
 use crate::{
     common::ErrorVecExt,
     target_list::{
-        chemistry::GeneName,
+        chemistry::{EnsemblId, GeneName},
         target::{UnvalidatedTarget, ValidGene},
     },
 };
@@ -19,14 +19,14 @@ pub struct TargetErrors {
 #[error("{error}\nhint: {hint}")]
 pub struct TargetErrorWrapper {
     pub error: TargetErrorInner,
-    pub hint: &'static str,
+    pub hint: String,
 }
 
 impl From<TargetErrorInner> for TargetErrorWrapper {
     fn from(error: TargetErrorInner) -> Self {
         Self {
+            hint: error.to_string(),
             error,
-            hint: todo!(),
         }
     }
 }
@@ -34,47 +34,38 @@ impl From<TargetErrorInner> for TargetErrorWrapper {
 #[derive(Clone, Debug, Serialize, PartialEq, thiserror::Error)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum TargetErrorInner {
-    #[error("malformed CSV - {reason}")]
-    MalformedCsv {
-        reason: String,
-    },
-    #[error("missing field - {fieldname}")]
-    MissingField {
-        fieldname: &'static str,
-    },
-    #[error("invalid priority - {value}")]
+    #[error("ensure the CSV is properly formatted")]
+    MalformedCsv { reason: String },
+    #[error("add the field {fieldname} to the CSV")]
+    MissingField { fieldname: &'static str },
+    #[error("change {value} to one of {}", allowed.join(","))]
     InvalidPriority {
         value: String,
+        allowed: &'static [&'static str],
     },
-
-    #[error(
-        "versioned or lowercase Ensembl ID{}",
-        correct_gene.as_ref().map_or_else(
-            String::new,
-            |gene| format!(" - the correct gene is {} ({})", gene.gene_name, gene.ensembl_id),
-        )
-    )]
-    VersionedOrLowercaseEnsemblId {
-        correct_gene: Option<ValidGene>,
-    },
-    #[error("no Ensembl ID")]
+    #[error("remove the Ensembl ID versino and uppercase it")]
+    VersionedOrLowercaseEnsemblId { correct_gene: Option<ValidGene> },
+    #[error("add an Ensembl ID")]
     NoEnsemblId,
-    #[error("no gene name - the gene name is probably {probable_gene_name}")]
-    NoGeneName {
-        probable_gene_name: GeneName,
-    },
-    #[error("renamed field - {original_fieldname} should be {correct_fieldname}")]
+    #[error("add a gene name (based on the Ensembl ID, it is probably {probable_gene_name})")]
+    NoGeneName { probable_gene_name: GeneName },
+    #[error("rename the header {original_fieldname} to {correct_fieldname}")]
     RenamedField {
         original_fieldname: String,
         correct_fieldname: String,
     },
-    #[error("Ensembl ID and gene name mismatch - the correct gene name is {correct_gene_name}")]
+    #[error(
+        "the gene name corresponding to the Ensembl ID {ensembl_id} is {correct_gene_name} - change either the Ensembl ID or the gene name so they match"
+    )]
     EnsemblIdGeneNameMismatch {
+        ensembl_id: EnsemblId,
         correct_gene_name: GeneName,
     },
-    #[error("gene not found")]
+    #[error(
+        "gene not found - see 10x Genomics allowed genes at: https://www.10xgenomics.com/support/software/xenium-panel-designer/latest/tutorials/create-gene-list#yesprobe"
+    )]
     GeneNotFound,
-    #[error("duplicate gene")]
+    #[error("remove this entry from the gene-list")]
     DuplicateGene,
 }
 

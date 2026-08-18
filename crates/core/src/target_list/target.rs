@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use csv::StringRecord;
 use serde::{Deserialize, Serialize};
+use strum::VariantNames;
 
 use crate::{
     common::ErrorVecExt,
@@ -74,6 +75,7 @@ fn parse_priority_field(s: Option<&str>) -> Result<Priority, TargetErrorInner> {
 
     Priority::from_str(s).map_err(|_| TargetErrorInner::InvalidPriority {
         value: s.to_owned(),
+        allowed: Priority::VARIANTS,
     })
 }
 
@@ -121,13 +123,25 @@ impl ValidGene {
             Ok(valid_gene)
         } else {
             Err(TargetErrorInner::EnsemblIdGeneNameMismatch {
+                ensembl_id: valid_gene.ensembl_id,
                 correct_gene_name: valid_gene.gene_name,
             })
         }
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq, strum::EnumString, PartialOrd, Ord)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Serialize,
+    PartialEq,
+    Eq,
+    strum::EnumString,
+    PartialOrd,
+    Ord,
+    strum::VariantNames,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub(crate) enum Priority {
@@ -204,12 +218,15 @@ mod tests {
         )
         .unwrap_err();
 
-        let (_correct_ensembl_id, correct_gene_name) =
+        let (correct_ensembl_id, correct_gene_name) =
             xenium_v1_human_ensembl_id_to_gene(&ensembl_id).unwrap();
 
         assert_eq!(
             err,
-            TargetErrorInner::EnsemblIdGeneNameMismatch { correct_gene_name },
+            TargetErrorInner::EnsemblIdGeneNameMismatch {
+                ensembl_id: correct_ensembl_id,
+                correct_gene_name
+            },
             "failed to create Ensembl ID-gene name mismatch error"
         );
     }

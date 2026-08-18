@@ -173,14 +173,18 @@ enum StringEncodingType {
 #[derive(Debug, Clone, Serialize, thiserror::Error)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum ReadH5FieldError {
-    #[error("wrong data type for or missing {field_type} - {object_path}")]
+    #[error("ensure that {object_path} exists and is a {field_type} - was scanpy used correctly?")]
     DataTypeOrMissing {
         field_type: FieldType,
         object_path: String,
     },
-    #[error("null value at index {index} - {object_path}")]
+    #[error(
+        "null-value found at index {index} of {object_path} - ensure every element of the array has a value"
+    )]
     NullValue { index: usize, object_path: String },
-    #[error("unknown encoding type {found} at {object_path} - expected one of {expected:?}")]
+    #[error(
+        "unknown encoding type {found} at {object_path}, expected one of {expected:?} - was scanpy used correctly?"
+    )]
     UnknownEncodingType {
         object_path: String,
         found: String,
@@ -198,14 +202,14 @@ pub enum FieldType {
 }
 
 #[derive(Debug, Clone, Serialize, thiserror::Error)]
-#[error("failed to create H5 group {object_path} - {reason}")]
+#[error("failed to create H5 group at {object_path} - {reason}")]
 pub struct CreateH5GroupError {
     pub object_path: String,
     pub reason: String,
 }
 
 #[derive(Debug, Clone, Serialize, thiserror::Error)]
-#[error("failed to write H5 dataset {object_path} - {reason}")]
+#[error("failed to write H5 dataset at {object_path} - {reason}")]
 pub struct WriteH5DatasetError {
     pub object_path: String,
     pub reason: String,
