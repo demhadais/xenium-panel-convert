@@ -144,7 +144,7 @@ impl ValidGene {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub(crate) enum Priority {
+pub(super) enum Priority {
     MustHave,
     Desired,
     Backup,
@@ -153,9 +153,9 @@ pub(crate) enum Priority {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ValidTarget {
     #[serde(flatten)]
-    pub(crate) gene: ValidGene,
-    pub(crate) group: String,
-    pub(crate) priority: Priority,
+    pub(super) gene: ValidGene,
+    pub(super) group: String,
+    pub(super) priority: Priority,
 }
 
 #[cfg(test)]

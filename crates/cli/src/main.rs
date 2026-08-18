@@ -3,10 +3,15 @@ use std::fs;
 use anyhow::Context;
 use camino::Utf8PathBuf;
 use clap::Parser;
-use xenium_panel_convert::{
+
+use crate::{
     reference_datasets::{ReferenceDatasetCliOptions, convert_reference_datasets},
     targets::{TargetListCliOptions, convert_target_list},
 };
+
+mod reference_datasets;
+mod targets;
+mod write;
 
 fn main() -> anyhow::Result<()> {
     let Cli {

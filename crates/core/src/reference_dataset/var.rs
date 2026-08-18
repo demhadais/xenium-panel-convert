@@ -101,21 +101,21 @@ fn check_feature_set(
 }
 
 // Human Ensembl IDs are 15 characters while mouse Ensembl IDs are 18
-pub(crate) type EnsemblId = FixedAscii<18>;
+pub(super) type EnsemblId = FixedAscii<18>;
 
-pub(crate) type EnsemblIds = Array1<EnsemblId>;
+type EnsemblIds = Array1<EnsemblId>;
 
 // No gene name is likely to exceed 32 characters
-pub(crate) type GeneName = FixedAscii<32>;
+pub(super) type GeneName = FixedAscii<32>;
 
-pub(crate) type GeneNames = Array1<GeneName>;
+type GeneNames = Array1<GeneName>;
 
-pub(crate) type FeatureType = FixedAscii<32>;
+type FeatureType = FixedAscii<32>;
 
-pub(crate) type FeatureTypes = Array1<FeatureType>;
+type FeatureTypes = Array1<FeatureType>;
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct Features {
+pub(super) struct Features {
     ensembl_ids: EnsemblIds,
     gene_names: GeneNames,
     feature_types: FeatureTypes,

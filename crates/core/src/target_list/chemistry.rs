@@ -45,17 +45,17 @@ pub struct UnvalidatedEnsemblId(String);
 
 impl UnvalidatedEnsemblId {
     #[cfg(test)]
-    pub(crate) fn new(ensembl_id: String) -> Self {
+    pub(super) fn new(ensembl_id: String) -> Self {
         Self(ensembl_id)
     }
 
     #[must_use]
-    pub(crate) fn to_versionless_uppercase(&self) -> Self {
+    pub(super) fn to_versionless_uppercase(&self) -> Self {
         Self(self.0.split('.').next().unwrap_or("").to_uppercase())
     }
 
     #[must_use]
-    pub(crate) fn is_versionless_and_uppercase(&self) -> bool {
+    pub(super) fn is_versionless_and_uppercase(&self) -> bool {
         !self
             .0
             .chars()
@@ -63,7 +63,7 @@ impl UnvalidatedEnsemblId {
     }
 
     #[cfg(test)]
-    pub(crate) fn as_str(&self) -> &str {
+    pub(super) fn as_str(&self) -> &str {
         &self.0
     }
 }
@@ -73,7 +73,7 @@ pub struct UnvalidatedGeneName(String);
 
 impl UnvalidatedGeneName {
     #[cfg(test)]
-    pub(crate) fn new(gene_name: String) -> Self {
+    pub(super) fn new(gene_name: String) -> Self {
         Self(gene_name)
     }
 }
@@ -121,14 +121,14 @@ fn ensembl_id_to_gene(
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+pub(super) mod tests {
     use crate::target_list::chemistry::{
         GeneName, UnvalidatedEnsemblId, xenium_prime_human::XENIUM_PRIME_HUMAN_GENES,
         xenium_prime_mouse::XENIUM_PRIME_MOUSE_GENES, xenium_v1_human::XENIUM_V1_HUMAN_GENES,
         xenium_v1_human_ensembl_id_to_gene, xenium_v1_mouse::XENIUM_V1_MOUSE_GENES,
     };
 
-    pub(crate) fn tp53_ensembl_id() -> UnvalidatedEnsemblId {
+    pub(in crate::target_list) fn tp53_ensembl_id() -> UnvalidatedEnsemblId {
         UnvalidatedEnsemblId("ENSG00000141510".to_owned())
     }
 

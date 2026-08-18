@@ -9,7 +9,7 @@ pub(super) enum EncodingType {
 }
 
 impl EncodingType {
-    pub(crate) const VARIANTS: &'static [&'static str] = &["array", "csr_matrix", "csc_matrix"];
+    pub(super) const VARIANTS: &'static [&'static str] = &["array", "csr_matrix", "csc_matrix"];
 }
 
 // We don't actually need a good error here because the caller decides what to

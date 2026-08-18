@@ -13,7 +13,7 @@ use xenium_panel_convert_core::reference_dataset::{
 
 use crate::write::write_to_file;
 
-pub fn convert_reference_datasets(
+pub(crate) fn convert_reference_datasets(
     ReferenceDatasetCliOptions { reference_datasets }: &ReferenceDatasetCliOptions,
     output_dir: &Utf8Path,
 ) -> anyhow::Result<()> {
@@ -157,7 +157,7 @@ impl ReferenceDatasetSpec {
 }
 
 #[derive(Clone, Debug, clap::Args)]
-pub struct ReferenceDatasetCliOptions {
+pub(crate) struct ReferenceDatasetCliOptions {
     #[clap(value_parser = ReferenceDatasetSpec::parse_commandline)]
     reference_datasets: Vec<ReferenceDatasetSpec>,
 }

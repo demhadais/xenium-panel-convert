@@ -51,7 +51,10 @@ impl FeatureSet {
     }
 
     #[must_use]
-    pub fn genes(self, n_genes: usize) -> Option<&'static phf::Map<&'static str, &'static str>> {
+    pub(super) fn genes(
+        self,
+        n_genes: usize,
+    ) -> Option<&'static phf::Map<&'static str, &'static str>> {
         match self {
             Self::ThreePrime(genes) | Self::Flex2020A(genes) if n_genes == genes.len() => {
                 Some(genes)

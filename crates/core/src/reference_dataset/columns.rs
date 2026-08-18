@@ -9,13 +9,6 @@ impl From<&str> for CellBarcodeCol {
     }
 }
 
-impl CellBarcodeCol {
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
 impl Default for CellBarcodeCol {
     fn default() -> Self {
         Self(String::from("_index"))
@@ -45,13 +38,6 @@ impl From<&str> for CellAnnotationCol {
     }
 }
 
-impl CellAnnotationCol {
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
 impl Display for CellAnnotationCol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
@@ -77,7 +63,7 @@ impl From<&str> for EnsemblIdCol {
 
 impl EnsemblIdCol {
     #[must_use]
-    pub fn as_str(&self) -> &str {
+    pub(super) fn as_str(&self) -> &str {
         &self.0
     }
 }
@@ -113,7 +99,7 @@ impl From<&str> for GeneNameCol {
 
 impl GeneNameCol {
     #[must_use]
-    pub fn as_str(&self) -> &str {
+    pub(super) fn as_str(&self) -> &str {
         &self.0
     }
 }

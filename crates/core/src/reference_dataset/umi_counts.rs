@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use hdf5_metno::{File, types::VarLenUnicode};
-pub(crate) use matrix::RawCscUmiCounts;
+pub(super) use matrix::RawCscUmiCounts;
 use serde::Serialize;
 
 use crate::reference_dataset::{

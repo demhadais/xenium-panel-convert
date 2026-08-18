@@ -14,7 +14,7 @@ use xenium_panel_convert_core::target_list::{
 
 use crate::write::write_to_file;
 
-pub fn convert_target_list(
+pub(crate) fn convert_target_list(
     TargetListCliOptions {
         targets_path,
         field_alias_file,
@@ -55,7 +55,7 @@ pub fn convert_target_list(
 }
 
 #[derive(Debug, Clone, clap::Args)]
-pub struct TargetListCliOptions {
+pub(crate) struct TargetListCliOptions {
     #[clap(long, short)]
     targets_path: Utf8PathBuf,
     #[clap(long, short = 'f')]

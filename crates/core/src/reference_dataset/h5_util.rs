@@ -8,7 +8,7 @@ use ndarray::{Array1, ArrayView, Dimension};
 use serde::Serialize;
 use strum::VariantNames;
 
-pub(crate) fn read_container(file: &File, path: &str) -> Result<Container, ReadH5FieldError> {
+pub(super) fn read_container(file: &File, path: &str) -> Result<Container, ReadH5FieldError> {
     let container = match file.group(path) {
         Ok(g) => g.as_container().unwrap(),
         Err(_) => file
@@ -23,7 +23,7 @@ pub(crate) fn read_container(file: &File, path: &str) -> Result<Container, ReadH
     Ok(container)
 }
 
-pub(crate) fn read_attribute<T: H5Type>(
+pub(super) fn read_attribute<T: H5Type>(
     container: &Container,
     path: &str,
 ) -> Result<T, ReadH5FieldError> {
@@ -36,7 +36,7 @@ pub(crate) fn read_attribute<T: H5Type>(
         })
 }
 
-pub(crate) fn read_1d_dataset<T: H5Type>(
+pub(super) fn read_1d_dataset<T: H5Type>(
     file: &File,
     path: &str,
 ) -> Result<Array1<T>, ReadH5FieldError> {
@@ -48,7 +48,7 @@ pub(crate) fn read_1d_dataset<T: H5Type>(
     })
 }
 
-pub(crate) fn read_dataset_raw<T: H5Type>(
+pub(super) fn read_dataset_raw<T: H5Type>(
     file: &File,
     path: &str,
 ) -> Result<Vec<T>, ReadH5FieldError> {
@@ -60,7 +60,7 @@ pub(crate) fn read_dataset_raw<T: H5Type>(
         })
 }
 
-pub(crate) fn read_1d_string_dataset(
+pub(super) fn read_1d_string_dataset(
     file: &File,
     path: &str,
 ) -> Result<Array1<VarLenUnicode>, ReadH5FieldError> {
@@ -129,18 +129,18 @@ fn read_nullable_string_array(
     read_string_array(file, &format!("{path}/values"))
 }
 
-pub(crate) fn to_ascii<const N: usize>(s: &VarLenUnicode) -> FixedAscii<N> {
+pub(super) fn to_ascii<const N: usize>(s: &VarLenUnicode) -> FixedAscii<N> {
     FixedAscii::from_ascii(&s).expect("all strings are ASCII in this context")
 }
 
-pub(crate) fn create_h5_group(file: &File, path: &str) -> Result<Group, CreateH5GroupError> {
+pub(super) fn create_h5_group(file: &File, path: &str) -> Result<Group, CreateH5GroupError> {
     file.create_group(path).map_err(|e| CreateH5GroupError {
         object_path: path.to_owned(),
         reason: e.to_string(),
     })
 }
 
-pub(crate) fn write_dataset_to_h5_group<'d, A, T, D>(
+pub(super) fn write_dataset_to_h5_group<'d, A, T, D>(
     group: &Group,
     path: &str,
     data: A,

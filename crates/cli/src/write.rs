@@ -4,7 +4,7 @@ use anyhow::{Context, ensure};
 use camino::Utf8Path;
 use serde::Serialize;
 
-pub fn write_to_file(data: &impl Serialize, path: &Utf8Path) -> anyhow::Result<()> {
+pub(crate) fn write_to_file(data: &impl Serialize, path: &Utf8Path) -> anyhow::Result<()> {
     ensure!(!path.exists(), "cannot overwrite file at {path}");
 
     let error_message = || format!("failed to write error report to {path}");
