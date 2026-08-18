@@ -24,7 +24,7 @@ pub mod error;
 pub mod feature_set;
 pub mod h5_util;
 pub mod obs;
-mod pseudo_anndata;
+pub mod pseudo_anndata;
 pub mod umi_counts;
 pub mod var;
 

@@ -180,7 +180,7 @@ pub enum ReadH5FieldError {
     },
 }
 
-#[derive(Debug, Clone, Serialize, strum::Display)]
+#[derive(Debug, Clone, Copy, Serialize, strum::Display)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {

@@ -38,6 +38,11 @@ missing-panics-doc = "allow"
 unreachable-pub = "warn"
 dead-code-pub-in-binary = "warn"
 elided-lifetimes-in-paths = "warn"
+explicit-outlives-requirements = "warn"
+missing-copy-implementations = "warn"
+missing-debug-implementations = "warn"
+unnameable-types = "warn"
+unit-bindings = "warn"
 
 
 [profile]

@@ -31,7 +31,7 @@ fn main() -> anyhow::Result<()> {
 struct Cli {
     #[clap(subcommand)]
     command: Command,
-    #[clap(long, short, global = true, default_value_t = Utf8PathBuf::from("xp-convert-output"))]
+    #[clap(long, short, global = true, default_value_t = Utf8PathBuf::from("xp-convert"))]
     output_dir: Utf8PathBuf,
 }
 
