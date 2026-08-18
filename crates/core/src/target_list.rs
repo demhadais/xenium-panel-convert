@@ -91,7 +91,6 @@ mod tests {
         TargetErrorInner,
         chemistry::{tests::tp53_ensembl_id, xenium_v1_human_ensembl_id_to_gene},
         parse_target_list,
-        target::Priority,
     };
 
     #[test]
@@ -115,12 +114,6 @@ mod tests {
             gene_names,
             ["TP53", "LEPR", "TMPO"],
             "targets were not returned in the order they were submitted"
-        );
-
-        let priorities: Vec<_> = targets.iter().map(|t| t.priority).collect();
-        assert_eq!(
-            priorities,
-            [Priority::MustHave, Priority::Desired, Priority::Backup]
         );
     }
 

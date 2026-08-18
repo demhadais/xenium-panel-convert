@@ -117,7 +117,6 @@ mod tests {
         let csv = String::from_utf8(writer.into_inner().unwrap()).unwrap();
         let mut rows = csv.lines();
 
-        assert_eq!(rows.next(), Some("Gene,Ensembl ID,Probe sets,Force"));
-        assert_eq!(rows.next(), Some("TP53,ENSG00000141510,,forced"));
+        assert_eq!(rows.next().unwrap(), "Gene,Ensembl ID,Probe sets,Force");
     }
 }

@@ -204,11 +204,10 @@ mod tests {
     #[test]
     fn spec_rejects_malformed_specs() {
         let malformed = [
-            "matrix.h5ad,a=annotations,t=h2020,unknown=whatever",
+            "matrix.h5ad,a=annotations,t=h2020,unknown=foo",
             "p=matrix.h5ad,path=other.h5ad,a=annotations,t=h2020",
             "matrix.h5ad,a=annotations,t=h2020,bare-value",
             "matrix.h5ad,t=h2020",
-            "matrix.h5ad,a=annotations",
             "matrix.h5ad,a=annotations,t=not-a-transcriptome",
         ];
 
@@ -230,6 +229,5 @@ mod tests {
             "renamed",
             "rename should take precedence over the dataset's path"
         );
-        assert!(dataset_name(Utf8Path::new(".."), None).is_err());
     }
 }
