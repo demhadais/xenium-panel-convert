@@ -166,6 +166,7 @@ mod tests {
     use hdf5_metno::File;
 
     use crate::reference_dataset::{
+        columns::{EnsemblIdCol, GeneNameCol},
         feature_set::{FeatureSet, Transcriptome},
         var::{VarError, read_features_from_h5ad},
     };
@@ -176,8 +177,8 @@ mod tests {
     ) -> Result<super::Features, VarError> {
         read_features_from_h5ad(
             &File::open("test-data/csr_adata.h5ad").unwrap(),
-            &ensembl_id_col.into(),
-            &gene_name_col.into(),
+            &EnsemblIdCol(ensembl_id_col.to_owned()),
+            &GeneNameCol(gene_name_col.to_owned()),
             FeatureSet::new(Transcriptome::Grch382020A, false),
         )
     }

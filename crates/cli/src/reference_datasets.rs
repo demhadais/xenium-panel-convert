@@ -3,11 +3,11 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::{Context, anyhow, bail, ensure};
+use anyhow::{anyhow, bail, ensure};
 use camino::{Utf8Path, Utf8PathBuf};
 use xenium_panel_convert_core::reference_dataset::{
     columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
-    feature_set::FeatureSet,
+    feature_set::{FeatureSet, Transcriptome},
     read_reference_dataset, write_reference_dataset,
 };
 
@@ -76,31 +76,27 @@ impl ReferenceDatasetSpec {
                                ensembl-id-col=gene_ids\nmatrix.h5ad,b=barcodes,a=annotations,\
                                e=gene_ids";
 
-        fn get_spec_value_default<T: Default + FromStr>(
+        fn get_spec_value_default<T: Default>(
             spec: &HashMap<&str, &str>,
             key: &str,
-        ) -> anyhow::Result<T>
-        where
-            Result<T, T::Err>: Context<T, T::Err>,
-        {
-            let Some(val) = spec.get(key) else {
-                return Ok(T::default());
-            };
-
-            T::from_str(val)
-                .with_context(|| format!("failed to parse value '{val}' for key '{key}'"))
+            map: impl Fn(String) -> T,
+        ) -> T {
+            spec.get(key)
+                .map(|&s| s.to_owned())
+                .map(map)
+                .unwrap_or_default()
         }
 
-        fn get_spec_value<T: FromStr>(spec: &HashMap<&str, &str>, key: &str) -> anyhow::Result<T>
-        where
-            Result<T, T::Err>: Context<T, T::Err>,
-        {
-            let val = spec
+        fn get_spec_value<T>(
+            spec: &HashMap<&str, &str>,
+            key: &str,
+            map: impl Fn(String) -> T,
+        ) -> anyhow::Result<T> {
+            let val = *spec
                 .get(key)
                 .ok_or_else(|| anyhow!("key '{key}' is required"))?;
 
-            T::from_str(val)
-                .with_context(|| format!("failed to parse value '{val}' for key '{key}'"))
+            Ok(map(val.to_owned()))
         }
 
         let key_aliases: HashMap<_, _> = [
@@ -144,17 +140,25 @@ impl ReferenceDatasetSpec {
             );
         }
 
+        let transcriptome_from_str =
+            |s: &&str| Transcriptome::from_str(*s).map_err(anyhow::Error::from);
+
         Ok(Self {
-            path: get_spec_value(&spec, "path")?,
-            cell_barcode_col: get_spec_value_default(&spec, "barcode-col")?,
-            cell_annotation_col: get_spec_value(&spec, "annotation-col")?,
-            ensembl_id_col: get_spec_value_default(&spec, "ensembl-id-col")?,
-            gene_name_col: get_spec_value_default(&spec, "gene-name-col")?,
+            path: get_spec_value(&spec, "path", Utf8PathBuf::from)?,
+            cell_barcode_col: get_spec_value_default(&spec, "barcode-col", CellBarcodeCol),
+            cell_annotation_col: get_spec_value(&spec, "annotation-col", CellAnnotationCol)?,
+            ensembl_id_col: get_spec_value_default(&spec, "ensembl-id-col", EnsemblIdCol),
+            gene_name_col: get_spec_value_default(&spec, "gene-name-col", GeneNameCol),
             transcriptome: FeatureSet::new(
-                get_spec_value(&spec, "transcriptome")?,
-                get_spec_value_default(&spec, "flex")?,
+                spec.get("transcriptome")
+                    .ok_or(anyhow!("key 'transcriptome' is required"))
+                    .and_then(transcriptome_from_str)?,
+                spec.get("flex")
+                    .map(|s| bool::from_str(*s))
+                    .transpose()?
+                    .unwrap_or_default(),
             ),
-            rename: get_spec_value(&spec, "rename").ok(),
+            rename: get_spec_value_default(&spec, "rename", |s| Some(Utf8PathBuf::from(s))),
         })
     }
 }
@@ -168,24 +172,30 @@ pub(crate) struct ReferenceDatasetCliOptions {
 #[cfg(test)]
 mod tests {
     use camino::Utf8Path;
-    use xenium_panel_convert_core::reference_dataset::feature_set::FeatureSet;
+    use xenium_panel_convert_core::reference_dataset::{
+        columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
+        feature_set::FeatureSet,
+    };
 
     use crate::reference_datasets::{ReferenceDatasetSpec, dataset_name};
 
     #[test]
     fn spec_parses_positional_path_and_aliases() {
         let spec = ReferenceDatasetSpec::parse_commandline(
-            "matrix.h5ad,b=barcodes,a=annotations,e=ids,g=names,t=h2020,r=renamed.h5ad",
+            "matrix.h5ad,b=barcode,a=annotation,e=id,g=name,t=h2020,f=true,r=renamed",
         )
         .unwrap();
 
         assert_eq!(spec.path.as_str(), "matrix.h5ad");
-        assert_eq!(spec.cell_barcode_col, "barcodes".into());
-        assert_eq!(spec.cell_annotation_col, "annotations".into());
-        assert_eq!(spec.ensembl_id_col, "ids".into());
-        assert_eq!(spec.gene_name_col, "names".into());
-        assert_eq!(spec.rename.as_deref(), Some(Utf8Path::new("renamed.h5ad")));
-        assert!(matches!(spec.transcriptome, FeatureSet::ThreePrime(_)));
+        assert_eq!(spec.cell_barcode_col, CellBarcodeCol("barcode".to_owned()));
+        assert_eq!(
+            spec.cell_annotation_col,
+            CellAnnotationCol("annotation".to_owned())
+        );
+        assert_eq!(spec.ensembl_id_col, EnsemblIdCol("id".to_owned()));
+        assert_eq!(spec.gene_name_col, GeneNameCol("name".to_owned()));
+        assert_eq!(spec.rename.as_deref(), Some(Utf8Path::new("renamed")));
+        std::assert_matches!(spec.transcriptome, FeatureSet::Flex2020A(_));
     }
 
     #[test]
@@ -195,9 +205,9 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(spec.cell_barcode_col, "_index".into());
-        assert_eq!(spec.ensembl_id_col, "gene_ids".into());
-        assert_eq!(spec.gene_name_col, "_index".into());
+        assert_eq!(spec.cell_barcode_col, CellBarcodeCol("_index".to_owned()));
+        assert_eq!(spec.ensembl_id_col, EnsemblIdCol("gene_ids".to_owned()));
+        assert_eq!(spec.gene_name_col, GeneNameCol("_index".to_owned()));
         assert_eq!(spec.rename, None);
     }
 

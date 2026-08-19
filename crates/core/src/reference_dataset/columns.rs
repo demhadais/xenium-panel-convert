@@ -1,13 +1,7 @@
-use std::{convert::Infallible, fmt::Display, str::FromStr};
+use std::fmt::Display;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CellBarcodeCol(String);
-
-impl From<&str> for CellBarcodeCol {
-    fn from(value: &str) -> Self {
-        Self(value.into())
-    }
-}
+pub struct CellBarcodeCol(pub String);
 
 impl Default for CellBarcodeCol {
     fn default() -> Self {
@@ -21,22 +15,8 @@ impl Display for CellBarcodeCol {
     }
 }
 
-impl FromStr for CellBarcodeCol {
-    type Err = Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        String::from_str(s).map(Self)
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CellAnnotationCol(String);
-
-impl From<&str> for CellAnnotationCol {
-    fn from(value: &str) -> Self {
-        Self(value.into())
-    }
-}
+pub struct CellAnnotationCol(pub String);
 
 impl Display for CellAnnotationCol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -44,22 +24,8 @@ impl Display for CellAnnotationCol {
     }
 }
 
-impl FromStr for CellAnnotationCol {
-    type Err = Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        String::from_str(s).map(Self)
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct EnsemblIdCol(String);
-
-impl From<&str> for EnsemblIdCol {
-    fn from(value: &str) -> Self {
-        Self(value.into())
-    }
-}
+pub struct EnsemblIdCol(pub String);
 
 impl EnsemblIdCol {
     #[must_use]
@@ -80,22 +46,8 @@ impl Default for EnsemblIdCol {
     }
 }
 
-impl FromStr for EnsemblIdCol {
-    type Err = Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        String::from_str(s).map(Self)
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GeneNameCol(String);
-
-impl From<&str> for GeneNameCol {
-    fn from(value: &str) -> Self {
-        Self(value.into())
-    }
-}
+pub struct GeneNameCol(pub String);
 
 impl GeneNameCol {
     #[must_use]
@@ -113,13 +65,5 @@ impl Display for GeneNameCol {
 impl Default for GeneNameCol {
     fn default() -> Self {
         Self(String::from("_index"))
-    }
-}
-
-impl FromStr for GeneNameCol {
-    type Err = Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        String::from_str(s).map(Self)
     }
 }

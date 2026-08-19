@@ -50,7 +50,7 @@ mod tests {
     use ndarray::Array1;
 
     use crate::reference_dataset::{
-        columns::CellBarcodeCol,
+        columns::{CellAnnotationCol, CellBarcodeCol},
         h5_util::{FieldType, ReadH5FieldError},
         obs::{ObsError, read_cell_annotations_from_h5ad, read_cell_barcodes_from_h5ad},
     };
@@ -63,13 +63,16 @@ mod tests {
     fn reads_barcodes_and_annotations() {
         let file = generated_h5ad();
 
-        let barcodes = read_cell_barcodes_from_h5ad(&file, &"barcode".into()).unwrap();
+        let barcodes =
+            read_cell_barcodes_from_h5ad(&file, &CellBarcodeCol("barcode".to_owned())).unwrap();
         let expected_barcodes: Array1<FixedAscii<64>> = (0..10)
             .map(|i| FixedAscii::from_ascii(&format!("cell_{i}")).unwrap())
             .collect();
         assert_eq!(barcodes, expected_barcodes);
 
-        let annotations = read_cell_annotations_from_h5ad(&file, &"annotation".into()).unwrap();
+        let annotations =
+            read_cell_annotations_from_h5ad(&file, &CellAnnotationCol("annotation".to_owned()))
+                .unwrap();
         let expected_annotations: Vec<_> = (0..10).map(|i| format!("group{}", i % 2)).collect();
         assert_eq!(annotations.to_vec(), expected_annotations);
     }
@@ -79,7 +82,8 @@ mod tests {
         let file = generated_h5ad();
 
         let from_index = read_cell_barcodes_from_h5ad(&file, &CellBarcodeCol::default()).unwrap();
-        let from_column = read_cell_barcodes_from_h5ad(&file, &"barcode".into()).unwrap();
+        let from_column =
+            read_cell_barcodes_from_h5ad(&file, &CellBarcodeCol("barcode".to_owned())).unwrap();
 
         assert_eq!(
             from_index, from_column,
@@ -89,8 +93,11 @@ mod tests {
 
     #[test]
     fn missing_column_is_an_error() {
-        let err =
-            read_cell_annotations_from_h5ad(&generated_h5ad(), &"nonexistent".into()).unwrap_err();
+        let err = read_cell_annotations_from_h5ad(
+            &generated_h5ad(),
+            &CellAnnotationCol("nonexistent".to_owned()),
+        )
+        .unwrap_err();
 
         std::assert_matches!(
             err,
