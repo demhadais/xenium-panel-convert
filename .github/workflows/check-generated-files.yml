@@ -3,9 +3,15 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "crates/core/build.rs"
+      - "crates/core/build/*"
+      - "crates/core/datasets/*"
+      - "crates/core/probe-sets/*"
+      - "crates/core/xenium-gene-lists/*"
 
 jobs:
-  release:
+  check-build-script-output:
     runs-on: ubuntu-latest
 
     steps:
