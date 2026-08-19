@@ -1,3 +1,4 @@
+#![allow(clippy::doc_markdown)]
 use std::fs;
 
 use anyhow::Context;
