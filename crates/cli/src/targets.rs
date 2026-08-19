@@ -64,10 +64,16 @@ pub(super) fn convert_target_list(
 
 #[derive(Debug, Clone, clap::Args)]
 pub(super) struct TargetListCliOptions {
+    /// A path to a CSV-formatted file with the header
+    /// "ensembl_id,gene_name,group,priority", where "priority" is one of
+    /// "must_have", "desired", or "backup".
     #[clap(long, short)]
     targets_path: Utf8PathBuf,
+    /// A path to a TOML file containing a map of field-aliases for the
+    /// target-list CSV. The file should map aliases to canonical fieldnames.
     #[clap(long, short = 'f')]
     field_alias_file: Option<Utf8PathBuf>,
+    /// One or more field-aliases specified as '<ALIAS>=<FIELD>'
     #[clap(long, short = 'a', value_parser = parse_field_aliases)]
     field_aliases: Vec<(String, String)>,
     #[clap(long, short)]

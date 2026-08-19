@@ -19,10 +19,11 @@ pub fn validate_target_list_and_reference_dataset_compatibility(
     // Return early because this warning implies the other two warning types
     if !species_and_transcriptome_match(target_list_species, reference_dataset_transcriptome) {
         return vec![
-            TargetListReferenceDatasetCompatibilityWarning::SpeciesTranscriptomeMismatch {
+            TargetListReferenceDatasetCompatibilityWarningInner::SpeciesTranscriptomeMismatch {
                 target_list_species,
                 reference_dataset_transcriptome,
-            },
+            }
+            .into(),
         ];
     }
 
@@ -37,7 +38,7 @@ pub fn validate_target_list_and_reference_dataset_compatibility(
         ) {
             Ok(()) => (),
             Err(w) => {
-                warnings.push(w);
+                warnings.push(w.into());
             }
         }
     }
@@ -63,14 +64,14 @@ fn validate_gene_is_in_feature_set_with_correct_name(
     reference_dataset: &PseudoAnndata,
     reference_dataset_transcriptome: Transcriptome,
     reference_dataset_is_flex: bool,
-) -> Result<(), TargetListReferenceDatasetCompatibilityWarning> {
+) -> Result<(), TargetListReferenceDatasetCompatibilityWarningInner> {
     let feature_set = FeatureSet::new(reference_dataset_transcriptome, reference_dataset_is_flex);
     let feature_set = feature_set
         .genes(reference_dataset.features().len())
         .expect("if we have a PseudoAnndata, we know its features are exactly the transcriptome");
 
     let gene_name_from_transcriptome = feature_set.get(target.ensembl_id.as_str()).ok_or(
-        TargetListReferenceDatasetCompatibilityWarning::TargetNotInReferenceDataset {
+        TargetListReferenceDatasetCompatibilityWarningInner::TargetNotInReferenceDataset {
             gene: target,
             transcriptome: reference_dataset_transcriptome,
         },
@@ -78,7 +79,7 @@ fn validate_gene_is_in_feature_set_with_correct_name(
 
     if target.gene_name != *gene_name_from_transcriptome {
         return Err(
-            TargetListReferenceDatasetCompatibilityWarning::GeneNameMismatch {
+            TargetListReferenceDatasetCompatibilityWarningInner::GeneNameMismatch {
                 gene_in_target_list: target,
                 gene_name_in_reference_dataset: gene_name_from_transcriptome,
             },
@@ -88,9 +89,28 @@ fn validate_gene_is_in_feature_set_with_correct_name(
     Ok(())
 }
 
+#[derive(Clone, Debug, thiserror::Error, serde::Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[error("{warning}")]
+pub struct TargetListReferenceDatasetCompatibilityWarning {
+    pub hint: String,
+    pub warning: TargetListReferenceDatasetCompatibilityWarningInner,
+}
+
+impl From<TargetListReferenceDatasetCompatibilityWarningInner>
+    for TargetListReferenceDatasetCompatibilityWarning
+{
+    fn from(value: TargetListReferenceDatasetCompatibilityWarningInner) -> Self {
+        Self {
+            hint: value.to_string(),
+            warning: value,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, thiserror::Error, serde::Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum TargetListReferenceDatasetCompatibilityWarning {
+pub enum TargetListReferenceDatasetCompatibilityWarningInner {
     #[error(
         "target-list and reference dataset transcriptome do not have the same species \
          ({target_list_species} and {reference_dataset_transcriptome})"

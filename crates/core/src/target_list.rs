@@ -4,7 +4,7 @@ use chemistry::{EnsemblId, GeneName, UnvalidatedEnsemblId};
 
 use crate::target_list::{
     csv_util::{read_csv_trimmed, rename_fields},
-    error::{TargetErrorInner, TargetErrors},
+    error::{TargetErrorInner, TargetErrorSet},
     target::{UnvalidatedTarget, ValidTarget},
 };
 
@@ -18,13 +18,13 @@ pub fn parse_target_list(
     target_list: &str,
     field_aliases: &HashMap<&str, &str>,
     ensembl_id_to_gene: impl Fn(&UnvalidatedEnsemblId) -> Option<(EnsemblId, GeneName)> + Copy,
-) -> Result<Vec<ValidTarget>, Vec<TargetErrors>> {
+) -> Result<Vec<ValidTarget>, Vec<TargetErrorSet>> {
     const N_GENES: usize = 500;
 
     let mut reader = read_csv_trimmed(target_list);
     // If we can't get headers, just return early
     let headers = reader.headers().map_err(|e| {
-        vec![TargetErrors {
+        vec![TargetErrorSet {
             errors: vec![TargetErrorInner::from(e).into()],
             line_number: None,
             submitted_target: None,
@@ -43,7 +43,7 @@ pub fn parse_target_list(
         let record = match record {
             Ok(record) => record,
             Err(err) => {
-                errors.push(TargetErrors {
+                errors.push(TargetErrorSet {
                     line_number: None,
                     submitted_target: None,
                     errors: vec![TargetErrorInner::from(err).into()],
@@ -69,7 +69,7 @@ pub fn parse_target_list(
             Err(row_errors) => row_errors,
         };
 
-        errors.push(TargetErrors {
+        errors.push(TargetErrorSet {
             line_number,
             submitted_target: Some(submitted_target),
             errors: row_errors.into_iter().map(Into::into).collect(),

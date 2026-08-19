@@ -14,7 +14,7 @@ use crate::{
 
 #[derive(Clone, Debug, Serialize, thiserror::Error)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum ReadReferenceDatasetError {
+pub enum ReadReferenceDatasetErrorInner {
     #[error("ensure the H5AD is properly formatted")]
     InvalidH5File { reason: String },
     #[error(transparent)]
@@ -27,33 +27,33 @@ pub enum ReadReferenceDatasetError {
     Shape { error: ShapeMismatchError },
 }
 
-impl From<UmiCountsError> for ReadReferenceDatasetError {
+impl From<UmiCountsError> for ReadReferenceDatasetErrorInner {
     fn from(error: UmiCountsError) -> Self {
         Self::UmiCounts { error }
     }
 }
 
-impl From<ObsError> for ReadReferenceDatasetError {
+impl From<ObsError> for ReadReferenceDatasetErrorInner {
     fn from(error: ObsError) -> Self {
         Self::Obs { error }
     }
 }
 
-impl From<VarError> for ReadReferenceDatasetError {
+impl From<VarError> for ReadReferenceDatasetErrorInner {
     fn from(error: VarError) -> Self {
         Self::Var { error }
     }
 }
 
-impl From<ShapeMismatchError> for ReadReferenceDatasetError {
+impl From<ShapeMismatchError> for ReadReferenceDatasetErrorInner {
     fn from(error: ShapeMismatchError) -> Self {
         Self::Shape { error }
     }
 }
 
-impl<E> ErrorVecExt<E> for Vec<ReadReferenceDatasetError>
+impl<E> ErrorVecExt<E> for Vec<ReadReferenceDatasetErrorInner>
 where
-    E: Into<ReadReferenceDatasetError>,
+    E: Into<ReadReferenceDatasetErrorInner>,
 {
     fn push_err<T>(&mut self, err: E) -> Option<T> {
         self.push(err.into());
@@ -85,13 +85,13 @@ pub enum WriteReferenceDatasetError {
 
 #[derive(Clone, Debug, Serialize, thiserror::Error)]
 #[error("{error}")]
-pub struct ReadReferenceDatasetErrorWrapper {
-    pub error: ReadReferenceDatasetError,
+pub struct ReadReferenceDatasetError {
+    pub error: ReadReferenceDatasetErrorInner,
     pub hint: String,
 }
 
-impl From<ReadReferenceDatasetError> for ReadReferenceDatasetErrorWrapper {
-    fn from(error: ReadReferenceDatasetError) -> Self {
+impl From<ReadReferenceDatasetErrorInner> for ReadReferenceDatasetError {
+    fn from(error: ReadReferenceDatasetErrorInner) -> Self {
         Self {
             hint: error.to_string(),
             error,
@@ -116,7 +116,7 @@ impl From<WriteReferenceDatasetError> for WriteReferenceDatasetErrorWrapper {
 }
 
 #[derive(Clone, Debug, Serialize)]
-pub struct ReadReferenceDatasetErrors {
+pub struct ReadReferenceDatasetErrorSet {
     pub path: Utf8PathBuf,
-    pub errors: Vec<ReadReferenceDatasetErrorWrapper>,
+    pub errors: Vec<ReadReferenceDatasetError>,
 }

@@ -84,8 +84,8 @@ pub(super) struct ReferenceDatasetSpec {
 impl ReferenceDatasetSpec {
     fn parse_commandline(s: &str) -> anyhow::Result<Self> {
         const EXAMPLE: &str = "path=matrix.h5ad,barcode-col=barcodes,annotation-col=annotations,\
-                               ensembl-id-col=gene_ids\nmatrix.h5ad,b=barcodes,a=annotations,\
-                               e=gene_ids";
+                               ensembl-id-col=gene_ids,transcriptome=GRCh38-2024-A\nmatrix.h5ad,\
+                               b=barcodes,a=annotations,e=gene_ids,t=h2024";
 
         fn get_spec_value_default<T: Default>(
             spec: &HashMap<&str, &str>,
@@ -179,9 +179,51 @@ impl ReferenceDatasetSpec {
 
 #[derive(Clone, Debug, clap::Args)]
 pub(crate) struct ReferenceDatasetCliOptions {
-    #[clap(value_parser = ReferenceDatasetSpec::parse_commandline)]
+    #[clap(
+        value_parser = ReferenceDatasetSpec::parse_commandline,
+        help = REFERENCE_DATASETS_HELP,
+        long_help = REFERENCE_DATASETS_LONG_HELP
+    )]
     reference_datasets: Vec<ReferenceDatasetSpec>,
 }
+
+const REFERENCE_DATASETS_HELP: &str = "One or more reference datasets, each specified as a \
+                                       comma-delimited list of <KEY>=<VALUE> pairs.";
+
+const REFERENCE_DATASETS_LONG_HELP: &str =
+    "One or more reference datasets, each specified as a comma-delimited list of <KEY>=<VALUE> \
+     pairs. Every key has a one-letter alias, and full names and aliases may be mixed within a \
+     single specification. No key may be given more than once. The value of 'path' may also be \
+     given without its key, in which case it must come first.
+
+KEY              ALIAS  VALUE
+- - - - - - - - - - - - - - -
+path           | p | the h5ad file to convert (required)
+annotation-col | a | obs column containing cell annotations (required)
+transcriptome  | t | transcriptome the dataset was aligned against (required)
+barcode-col    | b | obs column containing cell barcodes [default: _index]
+ensembl-id-col | e | var column containing Ensembl IDs [default: gene_ids]
+gene-name-col  | g | var column containing gene names [default: _index]
+flex           | f | 'true' if the dataset came from Flex (probe-based) chemistry, 'false' \
+     otherwise [default: false]
+rename         | r | name of the converted dataset in <OUTPUT_DIR> [default: the filename of \
+     'path', without its extension]
+
+
+'transcriptome' is case-insensitive and must be one of:
+NAME           ALIAS
+- - - - - - - - - - -
+GRCh38-2020-A | h2020
+GRCh38-2024-A | h2024
+mm10-2020-A   | m2020
+GRCm39-2024-A | m2024
+
+Examples:
+
+xp-convert references --output-dir output \
+     path=matrix.h5ad,annotation-col=cell_type,transcriptome=GRCh38-2024-A
+
+xp-convert references --output-dir output matrix.h5ad,a=cell_type,t=h2024,f=true,r=renamed-dataset";
 
 #[cfg(test)]
 mod tests {

@@ -9,20 +9,20 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
-pub struct TargetErrors {
+pub struct TargetErrorSet {
     pub line_number: Option<u64>,
     pub submitted_target: Option<UnvalidatedTarget>,
-    pub errors: Vec<TargetErrorWrapper>,
+    pub errors: Vec<TargetError>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, thiserror::Error)]
 #[error("{error}")]
-pub struct TargetErrorWrapper {
+pub struct TargetError {
     pub error: TargetErrorInner,
     pub hint: String,
 }
 
-impl From<TargetErrorInner> for TargetErrorWrapper {
+impl From<TargetErrorInner> for TargetError {
     fn from(error: TargetErrorInner) -> Self {
         Self {
             hint: error.to_string(),

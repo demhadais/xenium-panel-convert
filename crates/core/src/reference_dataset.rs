@@ -10,8 +10,8 @@ use crate::{
     reference_dataset::{
         columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
         error::{
-            ReadReferenceDatasetError, ReadReferenceDatasetErrors, WriteReferenceDatasetError,
-            WriteReferenceDatasetErrorWrapper,
+            ReadReferenceDatasetErrorInner, ReadReferenceDatasetErrorSet,
+            WriteReferenceDatasetError, WriteReferenceDatasetErrorWrapper,
         },
         feature_set::FeatureSet,
         h5_util::{create_h5_group, write_dataset_to_h5_group},
@@ -38,16 +38,16 @@ pub fn read_reference_dataset(
     ensembl_id_col: &EnsemblIdCol,
     gene_name_col: &GeneNameCol,
     feature_set: FeatureSet,
-) -> Result<PseudoAnndata, ReadReferenceDatasetErrors> {
+) -> Result<PseudoAnndata, ReadReferenceDatasetErrorSet> {
     let mut errors = Vec::new();
 
-    let collect = |errors: Vec<ReadReferenceDatasetError>| ReadReferenceDatasetErrors {
+    let collect = |errors: Vec<ReadReferenceDatasetErrorInner>| ReadReferenceDatasetErrorSet {
         path: path.to_owned(),
         errors: errors.into_iter().map(Into::into).collect(),
     };
 
     let file = hdf5_metno::File::open(path).map_err(|e| {
-        collect(vec![ReadReferenceDatasetError::InvalidH5File {
+        collect(vec![ReadReferenceDatasetErrorInner::InvalidH5File {
             reason: e.to_string(),
         }])
     })?;
@@ -187,7 +187,7 @@ mod tests {
         Barcode,
         columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
         error::{
-            ReadReferenceDatasetError, ReadReferenceDatasetErrorWrapper, WriteReferenceDatasetError,
+            ReadReferenceDatasetError, ReadReferenceDatasetErrorInner, WriteReferenceDatasetError,
         },
         feature_set::{FeatureSet, Transcriptome},
         h5_util::read_1d_dataset,
@@ -248,16 +248,16 @@ mod tests {
         std::assert_matches!(
             errors.errors.as_slice(),
             [
-                ReadReferenceDatasetErrorWrapper {
-                    error: ReadReferenceDatasetError::Obs { .. },
+                ReadReferenceDatasetError {
+                    error: ReadReferenceDatasetErrorInner::Obs { .. },
                     ..
                 },
-                ReadReferenceDatasetErrorWrapper {
-                    error: ReadReferenceDatasetError::Obs { .. },
+                ReadReferenceDatasetError {
+                    error: ReadReferenceDatasetErrorInner::Obs { .. },
                     ..
                 },
-                ReadReferenceDatasetErrorWrapper {
-                    error: ReadReferenceDatasetError::Var { .. },
+                ReadReferenceDatasetError {
+                    error: ReadReferenceDatasetErrorInner::Var { .. },
                     ..
                 },
             ],
