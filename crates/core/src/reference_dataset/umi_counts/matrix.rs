@@ -1,7 +1,7 @@
-use std::borrow::Cow;
+use std::ops::Range;
 
 use ndarray::Array2;
-use sprs::CsMatI;
+use sprs::{CsMatI, IndPtrView};
 
 use crate::reference_dataset::umi_counts::{
     UmiCountsError,
@@ -63,8 +63,8 @@ impl RawCscUmiCounts {
         self.0.as_matrix().indices()
     }
 
-    pub(crate) fn indptr(&self) -> Cow<'_, [i64]> {
-        self.0.as_matrix().proper_indptr()
+    pub(crate) fn indptr(&self) -> IndPtrView<'_, i64> {
+        self.0.as_matrix().indptr()
     }
 
     pub(crate) fn shape(&self) -> [i32; 2] {
@@ -76,19 +76,20 @@ impl RawCscUmiCounts {
 }
 
 fn validate_counts(mtx: UnvalidatedCscMatrix) -> Result<ValidatedCscMatrix, UmiCountsError> {
-    let shape = mtx.as_matrix().shape();
+    let inner_mtx = mtx.as_matrix();
+    let shape = inner_mtx.shape();
 
-    let (indptr, indices, f32_data) = mtx.into_inner().into_raw_storage();
-
-    let i32_data: Vec<_> = f32_data
+    let i32_data: Vec<_> = inner_mtx
+        .data()
         .iter()
         .map(|f| f32_to_i32(*f))
         .collect::<Result<_, _>>()?;
 
-    if all_total_counts_are_equal(&i32_data, &indptr)? {
+    if all_total_counts_are_equal(&i32_data, inner_mtx.indptr())? {
         return Err(UmiCountsError::NormalizedCounts);
     }
 
+    let (indptr, indices, _) = mtx.into_inner().into_raw_storage();
     Ok(CscMatrix::new(Matrix::new_csc(
         shape, indptr, indices, i32_data,
     )))
@@ -96,30 +97,38 @@ fn validate_counts(mtx: UnvalidatedCscMatrix) -> Result<ValidatedCscMatrix, UmiC
 
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_sign_loss)]
-fn all_total_counts_are_equal(data: &[i32], indptr: &[i64]) -> Result<bool, UmiCountsError> {
-    let n_cells = indptr.len() - 1;
-    let mut total_counts = vec![0; n_cells];
+fn all_total_counts_are_equal(
+    data: &[i32],
+    indptr: IndPtrView<'_, i64>,
+) -> Result<bool, UmiCountsError> {
+    let total_counts = calculate_total_counts_for_all_cells(data, indptr);
 
-    for (cell_idx, [first_count_idx, last_count_idx]) in indptr.array_windows().enumerate() {
-        total_counts[cell_idx] = calculate_total_counts_for_cell(
-            data,
-            *first_count_idx as usize,
-            *last_count_idx as usize,
-        );
-    }
-
-    let mut nonempty_cells = total_counts.iter().copied().filter(|tc| *tc > 0);
+    let mut nonempty_cells = total_counts.iter().filter(|tc| **tc > 0);
     let first_nonempty_cell = nonempty_cells.next().ok_or(UmiCountsError::EmptyCounts)?;
 
     Ok(nonempty_cells.all(|tc| tc == first_nonempty_cell))
 }
 
+fn calculate_total_counts_for_all_cells(data: &[i32], indptr: IndPtrView<'_, i64>) -> Vec<i32> {
+    let n_cells = indptr.len() - 1;
+    let mut total_counts = vec![0; n_cells];
+
+    for cell_idx in 0..n_cells {
+        let index_range = indptr.outer_inds(cell_idx);
+        total_counts[cell_idx] = calculate_total_counts_for_cell(data, index_range);
+    }
+
+    total_counts
+}
+
 fn calculate_total_counts_for_cell(
     data: &[i32],
-    first_count_idx: usize,
-    last_count_idx: usize,
+    Range {
+        start: first_count_idx,
+        end: last_count_idx,
+    }: Range<i64>,
 ) -> i32 {
-    let cell_counts = &data[first_count_idx..last_count_idx];
+    let cell_counts = &data[first_count_idx as usize..last_count_idx as usize];
     cell_counts.iter().sum()
 }
 
@@ -142,7 +151,7 @@ mod tests {
     use crate::reference_dataset::umi_counts::{
         RawCscUmiCounts, UmiCountsError,
         encoding_type::{DenseEncodingType, SparseEncodingType},
-        matrix::Matrix,
+        matrix::{Matrix, calculate_total_counts_for_all_cells},
     };
 
     fn counts() -> Array2<f32> {
@@ -155,6 +164,19 @@ mod tests {
 
     fn csc() -> Matrix<f32> {
         Matrix::csc_from_dense(counts().view(), 0.)
+    }
+
+    #[test]
+    fn total_counts_are_correct() {
+        let mtx = csr();
+        let data: Vec<_> = mtx.data().iter().map(|f| *f as i32).collect();
+
+        assert_eq!(
+            // This function assumes column-orientation - that is, each row is a feature and each
+            // column is a cell
+            calculate_total_counts_for_all_cells(&data, mtx.indptr()),
+            [3, 12]
+        );
     }
 
     #[allow(clippy::similar_names)]

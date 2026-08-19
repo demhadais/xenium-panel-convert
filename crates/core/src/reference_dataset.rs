@@ -147,7 +147,7 @@ fn write_matrix(
     let counts = dataset.counts();
     write_dataset_to_h5_group(&matrix_group, "data", counts.data()).map_err(write_err)?;
     write_dataset_to_h5_group(&matrix_group, "indices", counts.indices()).map_err(write_err)?;
-    write_dataset_to_h5_group(&matrix_group, "indptr", counts.indptr().iter().as_slice())
+    write_dataset_to_h5_group(&matrix_group, "indptr", counts.indptr().raw_storage())
         .map_err(write_err)?;
     write_dataset_to_h5_group(&matrix_group, "shape", &counts.shape()).map_err(write_err)?;
 
@@ -296,7 +296,7 @@ mod tests {
                 .unwrap()
                 .as_slice()
                 .unwrap(),
-            scanpy_counts.indptr().iter().as_slice()
+            scanpy_counts.indptr().raw_storage()
         );
         assert_eq!(
             read_1d_dataset::<i32>(&written, "matrix/shape")
@@ -387,7 +387,8 @@ mod tests {
     }
 
     #[test]
-    // "read" in the past-tense, as in "the dataset was read" (pronounced like "red")
+    // "read" in the past-tense, as in "the dataset was read" (pronounced like
+    // "red")
     fn read_dataset_is_the_same_as_cellranger_h5() {
         let read_dataset = read_scanpy_generated_dataset();
 
@@ -412,7 +413,7 @@ mod tests {
         let original_indptr = read_1d_dataset::<i64>(&original_h5, "matrix/indptr").unwrap();
         assert_eq!(
             original_indptr.as_slice().unwrap(),
-            read_counts.indptr().iter().as_slice(),
+            read_counts.indptr().raw_storage(),
             "UMI counts indptr was not correctly? reconstructed"
         );
         assert_eq!(
