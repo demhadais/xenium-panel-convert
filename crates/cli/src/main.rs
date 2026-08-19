@@ -5,10 +5,12 @@ use camino::Utf8PathBuf;
 use clap::Parser;
 
 use crate::{
-    reference_datasets::{ReferenceDatasetCliOptions, convert_reference_datasets},
+    all::convert_target_list_and_reference_datasets,
+    reference_datasets::{ReferenceDatasetCliOptions, convert_reference_datasets, dataset_name},
     targets::{TargetListCliOptions, convert_target_list},
 };
 
+mod all;
 mod reference_datasets;
 mod targets;
 mod write;
@@ -23,13 +25,23 @@ fn main() -> anyhow::Result<()> {
         .with_context(|| format!("failed to create output directory {output_dir}"))?;
 
     match command {
-        Command::Targets(options) => convert_target_list(&options, &output_dir),
-        Command::References(options) => convert_reference_datasets(&options, &output_dir),
-        Command::Submission {
-            targets_options: _,
-            references_options: _,
-        } => todo!(),
+        Command::Targets(options) => {
+            convert_target_list(&options, &output_dir)?;
+        }
+        Command::References(options) => {
+            convert_reference_datasets(&options, &output_dir)?;
+        }
+        Command::All {
+            targets_options,
+            references_options,
+        } => convert_target_list_and_reference_datasets(
+            &targets_options,
+            &references_options,
+            &output_dir,
+        )?,
     }
+
+    Ok(())
 }
 
 #[derive(clap::Parser)]
@@ -70,7 +82,7 @@ enum Command {
     /// This is the equivalent of running both commands at once with the added
     /// benefit of ensuring the genes in the target-list match the
     /// transcriptomes against which the reference datasets were aligned.
-    Submission {
+    All {
         #[clap(flatten)]
         targets_options: TargetListCliOptions,
         #[clap(flatten)]

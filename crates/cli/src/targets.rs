@@ -12,9 +12,9 @@ use xenium_panel_convert_core::target_list::{
     xenium_panel_designer::XeniumPanelDesignerGeneList,
 };
 
-use crate::write::write_to_file;
+use crate::write::{write_csv_to_file, write_json_to_file};
 
-pub(crate) fn convert_target_list(
+pub(super) fn convert_target_list(
     TargetListCliOptions {
         targets_path,
         field_alias_file,
@@ -23,7 +23,7 @@ pub(crate) fn convert_target_list(
         chemistry,
     }: &TargetListCliOptions,
     output_dir: &Utf8Path,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Option<XeniumPanelDesignerGeneList>> {
     let target_list = fs::read_to_string(targets_path)
         .with_context(|| format!("failed to read target-list from {targets_path}"))?;
 
@@ -44,18 +44,26 @@ pub(crate) fn convert_target_list(
 
     match result {
         Ok(targets) => {
-            write_to_file(&targets, &output_file_path("validated-targets.csv"))?;
-            write_to_file(
-                &XeniumPanelDesignerGeneList::from_valid_targets(targets),
+            write_csv_to_file(&targets, &output_file_path("validated-targets.csv"))?;
+
+            let gene_list = XeniumPanelDesignerGeneList::from_valid_targets(targets);
+            write_csv_to_file(
+                gene_list.as_slice(),
                 &output_file_path("xenium-panel-designer-targets.csv"),
-            )
+            )?;
+
+            Ok(Some(gene_list))
         }
-        Err(e) => write_to_file(&e, &output_file_path("target-list.errors.json")),
+        Err(e) => {
+            write_json_to_file(&e, &output_file_path("target-list.errors.json"))?;
+
+            Ok(None)
+        }
     }
 }
 
 #[derive(Debug, Clone, clap::Args)]
-pub(crate) struct TargetListCliOptions {
+pub(super) struct TargetListCliOptions {
     #[clap(long, short)]
     targets_path: Utf8PathBuf,
     #[clap(long, short = 'f')]
@@ -63,7 +71,7 @@ pub(crate) struct TargetListCliOptions {
     #[clap(long, short = 'a', value_parser = parse_field_aliases)]
     field_aliases: Vec<(String, String)>,
     #[clap(long, short)]
-    species: Species,
+    pub(super) species: Species,
     #[clap(long, short)]
     chemistry: Chemistry,
 }

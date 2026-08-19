@@ -81,8 +81,8 @@ fn parse_priority_field(s: Option<&str>) -> Result<Priority, TargetErrorInner> {
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq, Hash)]
 pub struct ValidGene {
-    pub ensembl_id: EnsemblId,
-    pub gene_name: GeneName,
+    pub(crate) ensembl_id: EnsemblId,
+    pub(crate) gene_name: GeneName,
 }
 
 impl ValidGene {
@@ -153,9 +153,19 @@ pub(super) enum Priority {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ValidTarget {
     #[serde(flatten)]
-    pub(super) gene: ValidGene,
-    pub(super) group: String,
-    pub(super) priority: Priority,
+    gene: ValidGene,
+    group: String,
+    priority: Priority,
+}
+
+impl ValidTarget {
+    pub(crate) fn gene(&self) -> ValidGene {
+        self.gene
+    }
+
+    pub(super) fn priority(&self) -> Priority {
+        self.priority
+    }
 }
 
 #[cfg(test)]

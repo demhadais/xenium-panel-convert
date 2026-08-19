@@ -931,6 +931,7 @@ dependencies = [
  "anyhow",
  "camino",
  "clap",
+ "csv",
  "serde",
  "serde_json",
  "tempfile",

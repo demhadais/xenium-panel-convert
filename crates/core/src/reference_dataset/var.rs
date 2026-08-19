@@ -114,7 +114,7 @@ type FeatureType = FixedAscii<32>;
 type FeatureTypes = Array1<FeatureType>;
 
 #[derive(Debug, PartialEq)]
-pub(super) struct Features {
+pub(crate) struct Features {
     ensembl_ids: EnsemblIds,
     gene_names: GeneNames,
     feature_types: FeatureTypes,
@@ -133,7 +133,7 @@ impl Features {
         &self.feature_types
     }
 
-    pub(super) fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.ensembl_ids.len()
     }
 }

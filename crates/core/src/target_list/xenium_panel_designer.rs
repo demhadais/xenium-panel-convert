@@ -12,7 +12,7 @@ pub struct XeniumPanelDesignerGeneList(Vec<XeniumPanelDesignerGene>);
 
 impl XeniumPanelDesignerGeneList {
     pub fn from_valid_targets(mut valid_targets: Vec<ValidTarget>) -> Self {
-        valid_targets.sort_by_key(|target| target.priority);
+        valid_targets.sort_by_key(|target| target.priority());
 
         Self(
             valid_targets
@@ -21,10 +21,18 @@ impl XeniumPanelDesignerGeneList {
                 .collect(),
         )
     }
+
+    pub fn as_slice(&self) -> &[XeniumPanelDesignerGene] {
+        &self.0
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.0.iter().len()
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-struct XeniumPanelDesignerGene {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct XeniumPanelDesignerGene {
     #[serde(rename = "Gene")]
     gene: GeneName,
     #[serde(rename = "Ensembl ID")]
@@ -36,21 +44,24 @@ struct XeniumPanelDesignerGene {
 }
 
 impl XeniumPanelDesignerGene {
-    fn from_valid_target(
-        ValidTarget {
-            gene: ValidGene {
-                ensembl_id,
-                gene_name,
-            },
-            group: _,
-            priority,
-        }: &ValidTarget,
-    ) -> Self {
+    fn from_valid_target(target: &ValidTarget) -> Self {
+        let ValidGene {
+            ensembl_id,
+            gene_name,
+        } = target.gene();
+
         Self {
-            gene: *gene_name,
-            ensembl_id: *ensembl_id,
+            gene: gene_name,
+            ensembl_id,
             probe_sets: None,
-            force: (*priority == target::Priority::MustHave).then_some(Force::Forced),
+            force: (target.priority() == target::Priority::MustHave).then_some(Force::Forced),
+        }
+    }
+
+    pub(crate) fn gene(&self) -> ValidGene {
+        ValidGene {
+            ensembl_id: self.ensembl_id,
+            gene_name: self.gene,
         }
     }
 }

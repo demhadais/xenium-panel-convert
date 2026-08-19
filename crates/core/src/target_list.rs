@@ -58,7 +58,7 @@ pub fn parse_target_list(
 
         let row_errors = match submitted_target.validate(ensembl_id_to_gene) {
             Ok(valid_target) => {
-                if seen_genes.insert(valid_target.gene) {
+                if seen_genes.insert(valid_target.gene()) {
                     valid_targets.push(valid_target);
 
                     continue;
@@ -108,7 +108,7 @@ mod tests {
 
         let gene_names: Vec<_> = targets
             .iter()
-            .map(|t| t.gene.gene_name.to_string())
+            .map(|t| t.gene().gene_name.to_string())
             .collect();
         assert_eq!(
             gene_names,

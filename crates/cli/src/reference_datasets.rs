@@ -8,27 +8,32 @@ use camino::{Utf8Path, Utf8PathBuf};
 use xenium_panel_convert_core::reference_dataset::{
     columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
     feature_set::{FeatureSet, Transcriptome},
+    pseudo_anndata::PseudoAnndata,
     read_reference_dataset, write_reference_dataset,
 };
 
-use crate::write::write_to_file;
+use crate::write::write_json_to_file;
 
-pub(crate) fn convert_reference_datasets(
-    ReferenceDatasetCliOptions { reference_datasets }: &ReferenceDatasetCliOptions,
+pub(super) fn convert_reference_datasets<'a>(
+    ReferenceDatasetCliOptions { reference_datasets }: &'a ReferenceDatasetCliOptions,
     output_dir: &Utf8Path,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Vec<(PseudoAnndata, &'a ReferenceDatasetSpec)>> {
     let output_path = |filename: &str| output_dir.join(filename);
 
-    for ReferenceDatasetSpec {
-        path,
-        cell_barcode_col,
-        cell_annotation_col,
-        ensembl_id_col,
-        gene_name_col,
-        transcriptome,
-        rename,
-    } in reference_datasets
-    {
+    let mut converted_datasets = Vec::with_capacity(reference_datasets.len());
+    for spec in reference_datasets {
+        let ReferenceDatasetSpec {
+            path,
+            cell_barcode_col,
+            cell_annotation_col,
+            ensembl_id_col,
+            gene_name_col,
+            transcriptome: _,
+            flex: _,
+            feature_set,
+            rename,
+        } = spec;
+
         let dataset_name = dataset_name(path, rename.as_deref())?;
 
         match read_reference_dataset(
@@ -37,22 +42,26 @@ pub(crate) fn convert_reference_datasets(
             cell_annotation_col,
             ensembl_id_col,
             gene_name_col,
-            *transcriptome,
+            *feature_set,
         ) {
             Ok(ds) => {
                 write_reference_dataset(&output_path(dataset_name), &ds)?;
+                converted_datasets.push((ds, spec));
             }
             Err(errors) => {
                 let error_path = format!("{dataset_name}-errors.json");
-                write_to_file(&errors, &output_path(&error_path))?;
+                write_json_to_file(&errors, &output_path(&error_path))?;
             }
         }
     }
 
-    Ok(())
+    Ok(converted_datasets)
 }
 
-fn dataset_name<'a>(path: &'a Utf8Path, rename: Option<&'a Utf8Path>) -> anyhow::Result<&'a str> {
+pub(super) fn dataset_name<'a>(
+    path: &'a Utf8Path,
+    rename: Option<&'a Utf8Path>,
+) -> anyhow::Result<&'a str> {
     rename
         .and_then(Utf8Path::file_stem)
         .or_else(|| path.file_stem())
@@ -60,14 +69,16 @@ fn dataset_name<'a>(path: &'a Utf8Path, rename: Option<&'a Utf8Path>) -> anyhow:
 }
 
 #[derive(Clone, Debug)]
-struct ReferenceDatasetSpec {
-    path: Utf8PathBuf,
+pub(super) struct ReferenceDatasetSpec {
+    pub(super) path: Utf8PathBuf,
     cell_barcode_col: CellBarcodeCol,
     cell_annotation_col: CellAnnotationCol,
     ensembl_id_col: EnsemblIdCol,
     gene_name_col: GeneNameCol,
-    transcriptome: FeatureSet,
-    rename: Option<Utf8PathBuf>,
+    pub(super) transcriptome: Transcriptome,
+    pub(super) flex: bool,
+    feature_set: FeatureSet,
+    pub(super) rename: Option<Utf8PathBuf>,
 }
 
 impl ReferenceDatasetSpec {
@@ -142,6 +153,15 @@ impl ReferenceDatasetSpec {
 
         let transcriptome_from_str =
             |s: &&str| Transcriptome::from_str(*s).map_err(anyhow::Error::from);
+        let transcriptome = spec
+            .get("transcriptome")
+            .ok_or(anyhow!("key 'transcriptome' is required"))
+            .and_then(transcriptome_from_str)?;
+        let flex = spec
+            .get("flex")
+            .map(|s| bool::from_str(*s))
+            .transpose()?
+            .unwrap_or_default();
 
         Ok(Self {
             path: get_spec_value(&spec, "path", Utf8PathBuf::from)?,
@@ -149,15 +169,9 @@ impl ReferenceDatasetSpec {
             cell_annotation_col: get_spec_value(&spec, "annotation-col", CellAnnotationCol)?,
             ensembl_id_col: get_spec_value_default(&spec, "ensembl-id-col", EnsemblIdCol),
             gene_name_col: get_spec_value_default(&spec, "gene-name-col", GeneNameCol),
-            transcriptome: FeatureSet::new(
-                spec.get("transcriptome")
-                    .ok_or(anyhow!("key 'transcriptome' is required"))
-                    .and_then(transcriptome_from_str)?,
-                spec.get("flex")
-                    .map(|s| bool::from_str(*s))
-                    .transpose()?
-                    .unwrap_or_default(),
-            ),
+            transcriptome,
+            flex,
+            feature_set: FeatureSet::new(transcriptome, flex),
             rename: get_spec_value_default(&spec, "rename", |s| Some(Utf8PathBuf::from(s))),
         })
     }
@@ -195,7 +209,7 @@ mod tests {
         assert_eq!(spec.ensembl_id_col, EnsemblIdCol("id".to_owned()));
         assert_eq!(spec.gene_name_col, GeneNameCol("name".to_owned()));
         assert_eq!(spec.rename.as_deref(), Some(Utf8Path::new("renamed")));
-        std::assert_matches!(spec.transcriptome, FeatureSet::Flex2020A(_));
+        std::assert_matches!(spec.feature_set, FeatureSet::Flex2020A(_));
     }
 
     #[test]

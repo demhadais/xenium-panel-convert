@@ -8,10 +8,14 @@ mod xenium_prime_mouse;
 mod xenium_v1_human;
 mod xenium_v1_mouse;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, strum::Display, serde::Serialize)]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum Species {
+    #[serde(rename = "Homo sapiens")]
+    #[strum(serialize = "Homo sapiens")]
     HomoSapiens,
+    #[serde(rename = "Mus musculus")]
+    #[strum(serialize = "Mus musculus")]
     MusMusculus,
 }
 
@@ -25,6 +29,12 @@ pub enum Chemistry {
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EnsemblId(&'static str);
 
+impl EnsemblId {
+    pub fn as_str(&self) -> &str {
+        self.0
+    }
+}
+
 impl Display for EnsemblId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
@@ -33,6 +43,12 @@ impl Display for EnsemblId {
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GeneName(&'static str);
+
+impl PartialEq<&str> for GeneName {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
 
 impl Display for GeneName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

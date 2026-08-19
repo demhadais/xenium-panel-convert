@@ -61,7 +61,7 @@ impl PseudoAnndata {
         &self.cell_annotations
     }
 
-    pub(super) fn features(&self) -> &Features {
+    pub(crate) fn features(&self) -> &Features {
         &self.features
     }
 }

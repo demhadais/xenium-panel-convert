@@ -51,7 +51,7 @@ impl FeatureSet {
     }
 
     #[must_use]
-    pub(super) fn n_genes(&self) -> (usize, Option<usize>) {
+    pub(crate) fn n_genes(&self) -> (usize, Option<usize>) {
         match self {
             Self::ThreePrime(genes) | Self::Flex2020A(genes) => (genes.len(), None),
             Self::Flex2024A { v1, v2 } if v1.len() == v2.len() => (v1.len(), None),
@@ -60,17 +60,19 @@ impl FeatureSet {
     }
 
     #[must_use]
-    pub(super) fn genes(
+    pub(crate) fn genes(
         self,
-        n_genes: usize,
+        n_genes_in_dataset: usize,
     ) -> Option<&'static phf::Map<&'static str, &'static str>> {
         match self {
-            Self::ThreePrime(genes) | Self::Flex2020A(genes) if n_genes == genes.len() => {
+            Self::ThreePrime(genes) | Self::Flex2020A(genes)
+                if n_genes_in_dataset == genes.len() =>
+            {
                 Some(genes)
             }
             Self::Flex2024A { v1, v2 } => {
-                let is_v1 = v1.len() == n_genes;
-                let is_v2 = v2.len() == n_genes;
+                let is_v1 = v1.len() == n_genes_in_dataset;
+                let is_v2 = v2.len() == n_genes_in_dataset;
 
                 let v1 = is_v1.then_some(v1);
                 let v2 = is_v2.then_some(v2);
@@ -85,22 +87,26 @@ impl FeatureSet {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, strum::EnumString)]
+#[derive(Debug, Clone, Copy, PartialEq, strum::EnumString, strum::Display, serde::Serialize)]
 pub enum Transcriptome {
+    #[serde(rename = "GRCh38-2020-A")]
     #[strum(
         serialize = "GRCh38-2020-A",
         serialize = "h2020",
         ascii_case_insensitive
     )]
     Grch382020A,
+    #[serde(rename = "GRCh38-2024-A")]
     #[strum(
         serialize = "GRCh38-2024-A",
         serialize = "h2024",
         ascii_case_insensitive
     )]
     Grch382024A,
+    #[serde(rename = "mm10-2020-A")]
     #[strum(serialize = "mm10-2020-A", serialize = "m2020", ascii_case_insensitive)]
     Mm102020A,
+    #[serde(rename = "GRCm39-2024-A")]
     #[strum(
         serialize = "GRCm39-2024-A",
         serialize = "m2024",
