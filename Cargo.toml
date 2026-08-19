@@ -12,22 +12,21 @@ description = "A command-line utility for converting files to the formats accept
 readme = "README.md"
 
 [workspace.dependencies]
-anyhow = "1.0.102"
-camino = {version = "1.2.4", features = ["serde1"] }
+anyhow = "1.0.104"
+camino = {version = "1.2.5", features = ["serde1"] }
 csv = "1.4.0"
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-toml = { version = "1.1.2", default-features = false, features = ["std", "serde", "parse"] }
-reqwest = "0.13.4"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+toml = { version = "1.1.4", default-features = false, features = ["std", "serde", "parse"] }
 phf_codegen = { version = "0.14.0", features = ["ptrhash"] }
 phf = { version = "0.14.0", features = ["ptrhash"] }
-clap = { version = "4.6.1", features = ["derive"] }
-hdf5-metno = { version = "0.14.0", features = ["static", "zlib", "lzf"] }
+clap = { version = "4.6.6", features = ["derive"] }
+hdf5-metno = { version = "0.14.1", features = ["static", "zlib", "lzf"] }
 ndarray = { version = "0.17.2" }
-sprs = { version = "0.11.4", default-features = false }
+sprs = { version = "0.11.5", default-features = false }
 strum = { version = "0.28.0", features = ["derive"] }
 tempfile = "3.27.0"
-thiserror = { version = "2.0.19" }
+thiserror = { version = "2.0.20" }
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
