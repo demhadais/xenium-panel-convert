@@ -92,7 +92,8 @@ fn validate_gene_is_in_feature_set_with_correct_name(
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TargetListReferenceDatasetCompatibilityWarning {
     #[error(
-        "target-list and reference dataset transcriptome do not have the same species ({target_list_species} and {reference_dataset_transcriptome})"
+        "target-list and reference dataset transcriptome do not have the same species \
+         ({target_list_species} and {reference_dataset_transcriptome})"
     )]
     SpeciesTranscriptomeMismatch {
         target_list_species: Species,
