@@ -27,6 +27,10 @@ pub(super) fn convert_target_list_and_reference_datasets(
             options.flex,
         );
 
+        if warnings.is_empty() {
+            continue;
+        }
+
         let ds_name = dataset_name(&options.path, options.rename.as_deref())?;
         let warnings_path = format!("{ds_name}-warnings.json");
         write_json_to_file(&warnings, &output_dir.join(warnings_path))?;

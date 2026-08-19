@@ -56,8 +56,16 @@ impl UnvalidatedTarget {
             .map_or_else(|err| errors.push_err(err), Some);
 
         match (valid_gene, group, priority) {
-            (Some(valid_gene), Some(group), Some(priority)) => Ok(ValidTarget {
-                gene: valid_gene,
+            (
+                Some(ValidGene {
+                    ensembl_id,
+                    gene_name,
+                }),
+                Some(group),
+                Some(priority),
+            ) => Ok(ValidTarget {
+                ensembl_id,
+                gene_name,
                 group: group.to_ascii_lowercase(),
                 priority,
             }),
@@ -152,15 +160,18 @@ pub(super) enum Priority {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ValidTarget {
-    #[serde(flatten)]
-    gene: ValidGene,
+    ensembl_id: EnsemblId,
+    gene_name: GeneName,
     group: String,
     priority: Priority,
 }
 
 impl ValidTarget {
     pub(crate) fn gene(&self) -> ValidGene {
-        self.gene
+        ValidGene {
+            ensembl_id: self.ensembl_id,
+            gene_name: self.gene_name,
+        }
     }
 
     pub(super) fn priority(&self) -> Priority {
