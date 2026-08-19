@@ -2,6 +2,7 @@
 use std::{
     collections::HashSet,
     fmt::Display,
+    fs,
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -80,9 +81,7 @@ fn write_3p_gene_lists() -> anyhow::Result<()> {
 fn write_flex_gene_lists() -> anyhow::Result<()> {
     // https://www.10xgenomics.com/support/flex-gene-expression/documentation/steps/probe-sets/chromium-frp-human-transcriptome-probe-set
     let grch38_2020_a_flex = (
-        &include_bytes!(
-            "../probe-sets/Chromium_Human_Transcriptome_Probe_Set_v1.0.1_GRCh38-2020-A.csv"
-        )[..],
+        "probe-sets/Chromium_Human_Transcriptome_Probe_Set_v1.0.1_GRCh38-2020-A.csv",
         18_082,
         "GRCH38_2020_A_FLEX",
         "grch38_2020_a_flex.rs",
@@ -90,9 +89,7 @@ fn write_flex_gene_lists() -> anyhow::Result<()> {
 
     // https://www.10xgenomics.com/support/flex-gene-expression/documentation/steps/probe-sets/chromium-frp-human-transcriptome-probe-set-1-1
     let grch38_2024_a_flex_1_1 = (
-        &include_bytes!(
-            "../probe-sets/Chromium_Human_Transcriptome_Probe_Set_v1.1.0_GRCh38-2024-A.csv"
-        )[..],
+        "probe-sets/Chromium_Human_Transcriptome_Probe_Set_v1.1.0_GRCh38-2024-A.csv",
         18_129,
         "GRCH38_2024_A_FLEX_V1_1",
         "grch38_2024_a_flex_v1_1.rs",
@@ -100,9 +97,7 @@ fn write_flex_gene_lists() -> anyhow::Result<()> {
 
     // https://www.10xgenomics.com/support/flex-gene-expression/documentation/steps/probe-sets/chromium-frp-human-transcriptome-probe-set-2-0
     let grch38_2024_a_flex_2_0 = (
-        &include_bytes!(
-            "../probe-sets/Chromium_Human_Transcriptome_Probe_Set_v2.0.0_GRCh38-2024-A.csv"
-        )[..],
+        "probe-sets/Chromium_Human_Transcriptome_Probe_Set_v2.0.0_GRCh38-2024-A.csv",
         18_132,
         "GRCH38_2024_A_FLEX_V2_0",
         "grch38_2024_a_flex_v2_0.rs",
@@ -110,9 +105,7 @@ fn write_flex_gene_lists() -> anyhow::Result<()> {
 
     // https://www.10xgenomics.com/support/flex-gene-expression/documentation/steps/probe-sets/chromium-frp-mouse-transcriptome-probe-set
     let mm10_2020_a_flex = (
-        &include_bytes!(
-            "../probe-sets/Chromium_Mouse_Transcriptome_Probe_Set_v1.0.1_mm10-2020-A.csv"
-        )[..],
+        "probe-sets/Chromium_Mouse_Transcriptome_Probe_Set_v1.0.1_mm10-2020-A.csv",
         19_059,
         "MM10_2020_A_FLEX",
         "mm10_2020_a_flex.rs",
@@ -120,9 +113,7 @@ fn write_flex_gene_lists() -> anyhow::Result<()> {
 
     // https://www.10xgenomics.com/support/flex-gene-expression/documentation/steps/probe-sets/chromium-frp-mouse-transcriptome-probe-set-1-1
     let grcm39_2024_a_flex_1_1 = (
-        &include_bytes!(
-            "../probe-sets/Chromium_Mouse_Transcriptome_Probe_Set_v1.1.1_GRCm39-2024-A.csv"
-        )[..],
+        "probe-sets/Chromium_Mouse_Transcriptome_Probe_Set_v1.1.1_GRCm39-2024-A.csv",
         19_070,
         "GRCM39_2024_A_FLEX_V1_1",
         "grcm39_2024_a_flex_v1_1.rs",
@@ -130,15 +121,13 @@ fn write_flex_gene_lists() -> anyhow::Result<()> {
 
     // https://www.10xgenomics.com/support/flex-gene-expression/documentation/steps/probe-sets/chromium-frp-mouse-transcriptome-probe-set-2-0
     let grcm39_2024_a_flex_2_0 = (
-        &include_bytes!(
-            "../probe-sets/Chromium_Mouse_Transcriptome_Probe_Set_v2.0.0_GRCm39-2024-A.csv"
-        )[..],
+        "probe-sets/Chromium_Mouse_Transcriptome_Probe_Set_v2.0.0_GRCm39-2024-A.csv",
         19_070,
         "GRCM39_2024_A_FLEX_V2_0",
         "grcm39_2024_a_flex_v2_0.rs",
     );
 
-    for (raw_gene_list, expected_n_genes, map_name, map_path) in [
+    for (raw_gene_list_path, expected_n_genes, map_name, map_path) in [
         grch38_2020_a_flex,
         grch38_2024_a_flex_1_1,
         grch38_2024_a_flex_2_0,
@@ -146,7 +135,7 @@ fn write_flex_gene_lists() -> anyhow::Result<()> {
         grcm39_2024_a_flex_1_1,
         grcm39_2024_a_flex_2_0,
     ] {
-        let genes: Vec<Gene> = parse_gene_list_from_csv(raw_gene_list)
+        let genes: Vec<Gene> = parse_gene_list_from_csv(&fs::read(raw_gene_list_path)?)
             .with_context(|| format!("failed to parse gene-list for {map_path}"))?;
         let genes: Vec<_> = genes
             .iter()

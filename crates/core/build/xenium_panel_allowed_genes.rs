@@ -1,18 +1,18 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 use serde::Deserialize;
 
 use crate::common::{parse_gene_list_from_csv, write_map_to_file};
 
-static XENIUM_V1_GENE_LIST: &[u8] =
-    include_bytes!("../xenium-gene-lists/human_and_mouse_2020-A-ref-yesprobe-genes_v1assay.csv");
+const XENIUM_V1_GENE_LIST: &str =
+    "xenium-gene-lists/human_and_mouse_2020-A-ref-yesprobe-genes_v1assay.csv";
 
-static XENIUM_PRIME_GENE_LIST: &[u8] =
-    include_bytes!("../xenium-gene-lists/human_and_mouse_genes_xenium_prime-yesprobe-genes.csv");
+const XENIUM_PRIME_GENE_LIST: &str =
+    "xenium-gene-lists/human_and_mouse_genes_xenium_prime-yesprobe-genes.csv";
 
 pub(crate) fn write_gene_maps() -> anyhow::Result<()> {
     let gene_lists: Vec<_> = [XENIUM_V1_GENE_LIST, XENIUM_PRIME_GENE_LIST]
-        .map(parse_gene_list_from_csv)
+        .map(|p| parse_gene_list_from_csv(&fs::read(p).unwrap()))
         .into_iter()
         .collect::<Result<_, _>>()?;
 
