@@ -1,3 +1,4 @@
+#![allow(clippy::doc_markdown)]
 use std::{collections::HashMap, fs};
 
 use anyhow::{Context, anyhow};
