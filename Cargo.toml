@@ -6,36 +6,50 @@ resolver = "3"
 edition = "2024"
 authors = ["Ahmed Said"]
 license = "MIT"
-repository = "https://github.com/demhadais/xenium-panel-validate"
-version = "0.3.0"
-description = "A library and CLI for validating the inputs for a Xenium panel design at the SCBL at The Jackson Laboratory."
+repository = "https://github.com/demhadais/xenium-panel-convert"
+version = "0.4.0"
+description = "A command-line utility for converting files to the formats accepted by the 10x Genomics Xenium Panel Designer"
 readme = "README.md"
 
 [workspace.dependencies]
 anyhow = "1.0.102"
-camino = "1.2.4"
+camino = {version = "1.2.4", features = ["serde1"] }
 csv = "1.4.0"
-noodles = { version = "0.112.0", features = ["gtf", "gff"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 toml = { version = "1.1.2", default-features = false, features = ["std", "serde", "parse"] }
-quote = "1.0.46"
-proc-macro2 = "1.0.106"
 reqwest = "0.13.4"
-tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread"] }
-syn = { version = "2.0.118", default-features = false }
-heck = "0.5.0"
-bstr = "1.12.1"
-url = { version = "2.5.8", features = ["serde"] }
-futures = { version = "0.3.32" }
 phf_codegen = { version = "0.14.0", features = ["ptrhash"] }
 phf = { version = "0.14.0", features = ["ptrhash"] }
-phf_shared = { version = "0.14.0", features = ["ptrhash"] }
-clap = { version = "4.6.1", features = ["derive", "env"] }
-hdf5-metno = { version = "0.12.3", features = ["static"] }
-anndata = { version = "0.7.0" }
-anndata-hdf5= { version = "0.5.3" }
+clap = { version = "4.6.1", features = ["derive"] }
+hdf5-metno = { version = "0.14.0", features = ["static", "zlib", "lzf"] }
+ndarray = { version = "0.17.2" }
+sprs = { version = "0.11.4", default-features = false }
+strum = { version = "0.28.0", features = ["derive"] }
+tempfile = "3.27.0"
+thiserror = { version = "2.0.19" }
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
-implicit_hasher = "allow"
+implicit-hasher = "allow"
+missing-errors-doc = "allow"
+missing-panics-doc = "allow"
+
+[workspace.lints.rust]
+unreachable-pub = "warn"
+dead-code-pub-in-binary = "warn"
+elided-lifetimes-in-paths = "warn"
+explicit-outlives-requirements = "warn"
+missing-copy-implementations = "warn"
+missing-debug-implementations = "warn"
+unnameable-types = "warn"
+unit-bindings = "warn"
+
+
+[profile]
+release = { lto = true, codegen-units = 1, strip = true }
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

@@ -1,5 +1,5 @@
 [package]
-name = "xenium-panel-validate"
+name = "xenium-panel-convert"
 version.workspace = true
 edition.workspace = true
 description.workspace = true
@@ -9,16 +9,21 @@ repository.workspace = true
 readme.workspace = true
 
 [[bin]]
-name = "xpv"
+name = "xp-convert"
 path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
 camino.workspace = true
 clap.workspace = true
+serde.workspace = true
 serde_json.workspace = true
+csv.workspace = true
 toml.workspace = true
-xenium-panel-validate-core = { path = "../core", version = "0.3.0" }
+xenium-panel-convert-core = { path = "../core", version = "0.4.0", features = ["clap"] }
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true

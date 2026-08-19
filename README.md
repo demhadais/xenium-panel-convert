@@ -1,2 +1,3 @@
 # xenium-panel-validate
- A small command-line utility and associated library used by the SCBL to validate the inputs for a custom Xenium panel design.
+
+A command-line utility for converting files to the formats accepted by the 10x Genomics Xenium Panel Designer

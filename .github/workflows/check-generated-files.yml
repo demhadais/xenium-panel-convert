@@ -1,0 +1,42 @@
+name: Check generated files
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "crates/core/build.rs"
+      - "crates/core/build/*"
+      - "crates/core/datasets/*"
+      - "crates/core/probe-sets/*"
+      - "crates/core/xenium-gene-lists/*"
+
+jobs:
+  check-build-script-output:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v7
+
+      - name: Cache cargo files
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+          cache-workspace-crates: true
+          cache-on-failure: true
+
+      - name: Build crates
+        env:
+          BUILD_XP_CONVERT_GENE_MAPS: "true"
+          BUILD_XP_CONVERT_FEATURE_SETS: "true"
+        run: cargo build --workspace
+
+      - name: Install nightly toolchain
+        run: rustup component add --toolchain nightly-2026-08-18 rustfmt # Update this every now and then
+
+      - name: Format
+        # This is necessary else the next step fails
+        run: cargo +nightly-2026-08-18 fmt
+
+      - name: Compare committed code to regenerated code
+        run: git diff --exit-code

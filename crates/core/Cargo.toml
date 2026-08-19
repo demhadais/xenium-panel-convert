@@ -1,5 +1,5 @@
 [package]
-name = "xenium-panel-validate-core"
+name = "xenium-panel-convert-core"
 version.workspace = true
 edition.workspace = true
 description.workspace = true
@@ -9,26 +9,32 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
+camino.workspace = true
 csv.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 phf.workspace = true
-anndata.workspace = true
-anndata-hdf5.workspace = true
+hdf5-metno.workspace = true
+ndarray.workspace = true
+sprs.workspace = true
+strum.workspace = true
+thiserror.workspace = true
+clap = { workspace = true, optional = true }
 
 [build-dependencies]
-noodles.workspace = true
-serde_json.workspace = true
 serde.workspace = true
-toml.workspace = true
 anyhow.workspace = true
-reqwest.workspace = true
-tokio.workspace = true
-bstr.workspace = true
-url.workspace = true
 csv.workspace = true
-futures.workspace = true
 phf_codegen.workspace = true
+hdf5-metno.workspace = true
+
+
+[features]
+clap = ["dep:clap"]
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+tempfile.workspace = true

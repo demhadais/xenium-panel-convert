@@ -13,5 +13,5 @@ target
 # Contains mutation testing data
 **/mutants.out*/
 
-# Genome annotation files
-*.gtf*
+# Development on MacOS
+.DS_Store
