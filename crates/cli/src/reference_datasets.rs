@@ -152,14 +152,14 @@ impl ReferenceDatasetSpec {
         }
 
         let transcriptome_from_str =
-            |s: &&str| Transcriptome::from_str(*s).map_err(anyhow::Error::from);
+            |s: &&str| Transcriptome::from_str(s).map_err(anyhow::Error::from);
         let transcriptome = spec
             .get("transcriptome")
             .ok_or(anyhow!("key 'transcriptome' is required"))
             .and_then(transcriptome_from_str)?;
         let flex = spec
             .get("flex")
-            .map(|s| bool::from_str(*s))
+            .map(|s| bool::from_str(s))
             .transpose()?
             .unwrap_or_default();
 

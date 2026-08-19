@@ -30,6 +30,7 @@ pub enum Chemistry {
 pub struct EnsemblId(&'static str);
 
 impl EnsemblId {
+    #[must_use]
     pub fn as_str(&self) -> &str {
         self.0
     }

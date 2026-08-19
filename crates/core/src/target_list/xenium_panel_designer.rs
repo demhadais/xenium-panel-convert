@@ -12,7 +12,7 @@ pub struct XeniumPanelDesignerGeneList(Vec<XeniumPanelDesignerGene>);
 
 impl XeniumPanelDesignerGeneList {
     pub fn from_valid_targets(mut valid_targets: Vec<ValidTarget>) -> Self {
-        valid_targets.sort_by_key(|target| target.priority());
+        valid_targets.sort_by_key(super::target::ValidTarget::priority);
 
         Self(
             valid_targets
@@ -22,6 +22,7 @@ impl XeniumPanelDesignerGeneList {
         )
     }
 
+    #[must_use]
     pub fn as_slice(&self) -> &[XeniumPanelDesignerGene] {
         &self.0
     }

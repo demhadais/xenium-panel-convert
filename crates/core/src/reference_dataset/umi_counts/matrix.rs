@@ -95,8 +95,6 @@ fn validate_counts(mtx: UnvalidatedCscMatrix) -> Result<ValidatedCscMatrix, UmiC
     )))
 }
 
-#[allow(clippy::cast_possible_truncation)]
-#[allow(clippy::cast_sign_loss)]
 fn all_total_counts_are_equal(
     data: &[i32],
     indptr: IndPtrView<'_, i64>,
@@ -113,14 +111,15 @@ fn calculate_total_counts_for_all_cells(data: &[i32], indptr: IndPtrView<'_, i64
     let n_cells = indptr.len() - 1;
     let mut total_counts = vec![0; n_cells];
 
-    for cell_idx in 0..n_cells {
+    for (cell_idx, total_counts_for_this_cell) in total_counts.iter_mut().enumerate() {
         let index_range = indptr.outer_inds(cell_idx);
-        total_counts[cell_idx] = calculate_total_counts_for_cell(data, index_range);
+        *total_counts_for_this_cell = calculate_total_counts_for_cell(data, index_range);
     }
 
     total_counts
 }
 
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn calculate_total_counts_for_cell(
     data: &[i32],
     Range {

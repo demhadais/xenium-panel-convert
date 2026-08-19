@@ -8,6 +8,7 @@ use crate::{
     },
 };
 
+#[must_use]
 pub fn validate_target_list_and_reference_dataset_compatibility(
     target_list: &XeniumPanelDesignerGeneList,
     target_list_species: Species,
@@ -45,11 +46,16 @@ pub fn validate_target_list_and_reference_dataset_compatibility(
 }
 
 fn species_and_transcriptome_match(species: Species, transcriptome: Transcriptome) -> bool {
-    match (species, transcriptome) {
-        (Species::HomoSapiens, Transcriptome::Grch382020A | Transcriptome::Grch382024A) => true,
-        (Species::MusMusculus, Transcriptome::Mm102020A | Transcriptome::Grcm392024A) => true,
-        _ => false,
-    }
+    matches!(
+        (species, transcriptome),
+        (
+            Species::HomoSapiens,
+            Transcriptome::Grch382020A | Transcriptome::Grch382024A
+        ) | (
+            Species::MusMusculus,
+            Transcriptome::Mm102020A | Transcriptome::Grcm392024A
+        )
+    )
 }
 
 fn validate_gene_is_in_feature_set_with_correct_name(

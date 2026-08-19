@@ -125,7 +125,7 @@ fn write_matrix(
     dataset: &PseudoAnndata,
 ) -> Result<(), WriteReferenceDatasetErrorWrapper> {
     let file =
-        File::create_excl(&path).map_err(|e| WriteReferenceDatasetError::CreateMatrixFile {
+        File::create_excl(path).map_err(|e| WriteReferenceDatasetError::CreateMatrixFile {
             path: path.to_path_buf(),
             reason: e.to_string(),
         })?;
