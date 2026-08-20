@@ -1,6 +1,6 @@
 # Single-cell RNA sequencing Fixed RNA Capture (Flex) Probe-sets
 
-[The build script](../build.rs) reads the probe-sets in this directory to construct the expected feature-set, so the package can validate whether a user has filtered out genes from their anndata (H5AD). The probe-sets are versioned, so a user's data might have been generated with any of the following probe-sets:
+[The build script](../build.rs) reads the probe-set lists in this directory to construct the expected set of genes, so the package can validate whether a user has filtered out genes from their anndata (H5AD). The probe-sets are versioned, so a user's data might have been generated with any of the following probe-sets:
 
 - **Human Transcriptome v2.0.0 (GRCh38-2024-A)**: https://cf.10xgenomics.com/supp/cell-exp/probeset/Chromium_Human_Transcriptome_Probe_Set_v2.0.0_GRCh38-2024-A.csv
 

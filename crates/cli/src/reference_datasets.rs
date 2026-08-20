@@ -7,9 +7,10 @@ use anyhow::{anyhow, bail, ensure};
 use camino::{Utf8Path, Utf8PathBuf};
 use xenium_panel_convert_core::reference_dataset::{
     columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
-    feature_set::{FeatureSet, Transcriptome},
     pseudo_anndata::PseudoAnndata,
-    read_reference_dataset, write_reference_dataset,
+    read_reference_dataset,
+    transcriptome::{Transcriptome, TranscriptomeName},
+    write_reference_dataset,
 };
 
 use crate::write::write_json_to_file;
@@ -75,9 +76,9 @@ pub(super) struct ReferenceDatasetSpec {
     cell_annotation_col: CellAnnotationCol,
     ensembl_id_col: EnsemblIdCol,
     gene_name_col: GeneNameCol,
-    pub(super) transcriptome: Transcriptome,
+    pub(super) transcriptome: TranscriptomeName,
     pub(super) flex: bool,
-    feature_set: FeatureSet,
+    feature_set: Transcriptome,
     pub(super) rename: Option<Utf8PathBuf>,
 }
 
@@ -152,7 +153,7 @@ impl ReferenceDatasetSpec {
         }
 
         let transcriptome_from_str =
-            |s: &&str| Transcriptome::from_str(s).map_err(anyhow::Error::from);
+            |s: &&str| TranscriptomeName::from_str(s).map_err(anyhow::Error::from);
         let transcriptome = spec
             .get("transcriptome")
             .ok_or(anyhow!("key 'transcriptome' is required"))
@@ -171,7 +172,7 @@ impl ReferenceDatasetSpec {
             gene_name_col: get_spec_value_default(&spec, "gene-name-col", GeneNameCol),
             transcriptome,
             flex,
-            feature_set: FeatureSet::new(transcriptome, flex),
+            feature_set: Transcriptome::new(transcriptome, flex),
             rename: get_spec_value_default(&spec, "rename", |s| Some(Utf8PathBuf::from(s))),
         })
     }
@@ -230,7 +231,7 @@ mod tests {
     use camino::Utf8Path;
     use xenium_panel_convert_core::reference_dataset::{
         columns::{CellAnnotationCol, CellBarcodeCol, EnsemblIdCol, GeneNameCol},
-        feature_set::FeatureSet,
+        transcriptome::Transcriptome,
     };
 
     use crate::reference_datasets::{ReferenceDatasetSpec, dataset_name};
@@ -251,7 +252,7 @@ mod tests {
         assert_eq!(spec.ensembl_id_col, EnsemblIdCol("id".to_owned()));
         assert_eq!(spec.gene_name_col, GeneNameCol("name".to_owned()));
         assert_eq!(spec.rename.as_deref(), Some(Utf8Path::new("renamed")));
-        std::assert_matches!(spec.feature_set, FeatureSet::Flex2020A(_));
+        std::assert_matches!(spec.feature_set, Transcriptome::Flex2020A(_));
     }
 
     #[test]

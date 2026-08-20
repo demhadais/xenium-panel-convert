@@ -1,6 +1,6 @@
 # 3' Gene Expression (polyA-capture) Datasets
 
-[The build script](../build.rs) reads the dataests in this directory to extract feature-sets so the package can validate whether a user has filtered out genes from their anndata (H5AD). Each dataset represents the feature-set of a given reference transcriptome:
+[The build script](../build.rs) reads the datasets in this directory to extract transcriptomes so the package can validate whether a user has filtered out genes from their anndata (H5AD). Each dataset corresponds to a given reference transcriptome:
 
 - **GRCh38-2020-A**: https://cf.10xgenomics.com/samples/cell-exp/7.0.1/SC3pv3_GEX_Human_PBMC/SC3pv3_GEX_Human_PBMC_filtered_feature_bc_matrix.h5
 
