@@ -13,10 +13,10 @@ use crate::{
             ReadReferenceDatasetErrorInner, ReadReferenceDatasetErrorSet,
             WriteReferenceDatasetError, WriteReferenceDatasetErrorWrapper,
         },
-        feature_set::FeatureSet,
         h5_util::{create_h5_group, write_dataset_to_h5_group},
         obs::{read_cell_annotations_from_h5ad, read_cell_barcodes_from_h5ad},
         pseudo_anndata::PseudoAnndata,
+        transcriptome::Transcriptome,
         umi_counts::read_umi_counts_from_h5ad,
         var::read_features_from_h5ad,
     },
@@ -24,10 +24,10 @@ use crate::{
 
 pub mod columns;
 pub mod error;
-pub mod feature_set;
 pub mod h5_util;
 pub mod obs;
 pub mod pseudo_anndata;
+pub mod transcriptome;
 pub mod umi_counts;
 pub mod var;
 
@@ -37,7 +37,7 @@ pub fn read_reference_dataset(
     cell_annotation_col: &CellAnnotationCol,
     ensembl_id_col: &EnsemblIdCol,
     gene_name_col: &GeneNameCol,
-    feature_set: FeatureSet,
+    feature_set: Transcriptome,
 ) -> Result<PseudoAnndata, ReadReferenceDatasetErrorSet> {
     let mut errors = Vec::new();
 
@@ -189,10 +189,10 @@ mod tests {
         error::{
             ReadReferenceDatasetError, ReadReferenceDatasetErrorInner, WriteReferenceDatasetError,
         },
-        feature_set::{FeatureSet, Transcriptome},
         h5_util::read_1d_dataset,
         pseudo_anndata::PseudoAnndata,
         read_reference_dataset,
+        transcriptome::{Transcriptome, TranscriptomeName},
         var::{EnsemblId, GeneName},
         write_reference_dataset,
     };
@@ -207,7 +207,7 @@ mod tests {
             &CellAnnotationCol("annotation".to_owned()),
             &EnsemblIdCol("gene_ids".to_owned()),
             &GeneNameCol("gene_name".to_owned()),
-            FeatureSet::new(Transcriptome::Mm102020A, false),
+            Transcriptome::new(TranscriptomeName::Mm102020A, false),
         )
         .unwrap()
     }
@@ -239,7 +239,7 @@ mod tests {
             &CellAnnotationCol("bar".to_owned()),
             &EnsemblIdCol("baz".to_owned()),
             &GeneNameCol("qux".to_owned()),
-            FeatureSet::new(Transcriptome::Grch382020A, false),
+            Transcriptome::new(TranscriptomeName::Grch382020A, false),
         )
         .unwrap_err();
 
