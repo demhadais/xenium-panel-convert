@@ -28,7 +28,7 @@ jobs:
       - name: Build crates
         env:
           BUILD_XP_CONVERT_GENE_MAPS: "true"
-          BUILD_XP_CONVERT_FEATURE_SETS: "true"
+          BUILD_XP_CONVERT_TRANSCRIPTOMES: "true"
         run: cargo build --workspace
 
       - name: Install nightly toolchain

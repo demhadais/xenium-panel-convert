@@ -29,9 +29,9 @@ pub(super) fn convert_reference_datasets<'a>(
             cell_annotation_col,
             ensembl_id_col,
             gene_name_col,
-            transcriptome: _,
+            transcriptome_name: _,
             flex: _,
-            feature_set,
+            transcriptome,
             rename,
         } = spec;
 
@@ -43,7 +43,7 @@ pub(super) fn convert_reference_datasets<'a>(
             cell_annotation_col,
             ensembl_id_col,
             gene_name_col,
-            *feature_set,
+            *transcriptome,
         ) {
             Ok(ds) => {
                 write_reference_dataset(&output_path(dataset_name), &ds)?;
@@ -76,9 +76,9 @@ pub(super) struct ReferenceDatasetSpec {
     cell_annotation_col: CellAnnotationCol,
     ensembl_id_col: EnsemblIdCol,
     gene_name_col: GeneNameCol,
-    pub(super) transcriptome: TranscriptomeName,
+    pub(super) transcriptome_name: TranscriptomeName,
     pub(super) flex: bool,
-    feature_set: Transcriptome,
+    transcriptome: Transcriptome,
     pub(super) rename: Option<Utf8PathBuf>,
 }
 
@@ -154,7 +154,7 @@ impl ReferenceDatasetSpec {
 
         let transcriptome_from_str =
             |s: &&str| TranscriptomeName::from_str(s).map_err(anyhow::Error::from);
-        let transcriptome = spec
+        let transcriptome_name = spec
             .get("transcriptome")
             .ok_or(anyhow!("key 'transcriptome' is required"))
             .and_then(transcriptome_from_str)?;
@@ -170,9 +170,9 @@ impl ReferenceDatasetSpec {
             cell_annotation_col: get_spec_value(&spec, "annotation-col", CellAnnotationCol)?,
             ensembl_id_col: get_spec_value_default(&spec, "ensembl-id-col", EnsemblIdCol),
             gene_name_col: get_spec_value_default(&spec, "gene-name-col", GeneNameCol),
-            transcriptome,
+            transcriptome_name,
             flex,
-            feature_set: Transcriptome::new(transcriptome, flex),
+            transcriptome: Transcriptome::new(transcriptome_name, flex),
             rename: get_spec_value_default(&spec, "rename", |s| Some(Utf8PathBuf::from(s))),
         })
     }
@@ -252,7 +252,7 @@ mod tests {
         assert_eq!(spec.ensembl_id_col, EnsemblIdCol("id".to_owned()));
         assert_eq!(spec.gene_name_col, GeneNameCol("name".to_owned()));
         assert_eq!(spec.rename.as_deref(), Some(Utf8Path::new("renamed")));
-        std::assert_matches!(spec.feature_set, Transcriptome::Flex2020A(_));
+        std::assert_matches!(spec.transcriptome, Transcriptome::Flex2020A(_));
     }
 
     #[test]

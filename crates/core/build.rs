@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    complete_feature_sets::write_complete_feature_sets, xenium_panel_allowed_genes::write_gene_maps,
+    complete_feature_sets::write_transcriptomes, xenium_panel_allowed_genes::write_gene_maps,
 };
 
 #[path = "build/common.rs"]
@@ -16,8 +16,8 @@ fn main() -> anyhow::Result<()> {
         write_gene_maps()?;
     }
 
-    if is_true(option_env!("BUILD_XP_CONVERT_FEATURE_SETS"))? {
-        write_complete_feature_sets()?;
+    if is_true(option_env!("BUILD_XP_CONVERT_TRANSCRIPTOMES"))? {
+        write_transcriptomes()?;
     }
 
     Ok(())

@@ -76,7 +76,7 @@ fn check_feature_array_lens(
 fn validate_var_matches_transcriptome(
     ensembl_ids: &Array1<VarLenUnicode>,
     gene_names: &Array1<VarLenUnicode>,
-    expected_features: &phf::Map<&str, &str>,
+    expected_genes: &phf::Map<&str, &str>,
 ) -> Result<(), VarError> {
     let mut seen = HashSet::with_capacity(ensembl_ids.len());
 
@@ -88,17 +88,17 @@ fn validate_var_matches_transcriptome(
             });
         }
 
-        let expected_name =
-            expected_features
+        let expected_gene_name =
+            expected_genes
                 .get(id)
                 .ok_or_else(|| VarError::UnrecognizedFeature {
                     ensembl_id: id.to_string(),
                 })?;
 
-        if name != *expected_name {
+        if name != *expected_gene_name {
             return Err(VarError::EnsemblIdGeneNameMismatch {
                 ensembl_id: id.to_string(),
-                expected_gene_name: *expected_name,
+                expected_gene_name,
                 found_gene_name: name.to_string(),
             });
         }
@@ -175,7 +175,7 @@ pub enum VarError {
         found_gene_name: String,
     },
     #[error("some genes were filtered out of the dataset (expected: {}, found: {n_found_genes})",
-        n_expected_genes2.map(|n2| format!("{n_expected_genes} or {n2}")).unwrap_or_else(|| n_expected_genes.to_string()))]
+        n_expected_genes2.map_or_else(|| n_expected_genes.to_string(), |n2| format!("{n_expected_genes} or {n2}")))]
     FilteredGenes {
         n_expected_genes: usize,
         #[serde(skip_serializing_if = "Option::is_none")]

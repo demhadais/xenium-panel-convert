@@ -23,7 +23,7 @@ pub(super) fn convert_target_list_and_reference_datasets(
             &target_list,
             targets_options.species,
             ds,
-            options.transcriptome,
+            options.transcriptome_name,
             options.flex,
         );
 

@@ -37,7 +37,7 @@ pub fn read_reference_dataset(
     cell_annotation_col: &CellAnnotationCol,
     ensembl_id_col: &EnsemblIdCol,
     gene_name_col: &GeneNameCol,
-    feature_set: Transcriptome,
+    transcriptome: Transcriptome,
 ) -> Result<PseudoAnndata, ReadReferenceDatasetErrorSet> {
     let mut errors = Vec::new();
 
@@ -60,7 +60,7 @@ pub fn read_reference_dataset(
     let cell_annotations = read_cell_annotations_from_h5ad(&file, cell_annotation_col)
         .map_or_else(|err| errors.push_err(err), Some);
 
-    let features = read_features_from_h5ad(&file, ensembl_id_col, gene_name_col, feature_set)
+    let features = read_features_from_h5ad(&file, ensembl_id_col, gene_name_col, transcriptome)
         .map_or_else(|err| errors.push_err(err), Some);
 
     let (Some(counts), Some(barcodes), Some(cell_annotations), Some(features)) =
