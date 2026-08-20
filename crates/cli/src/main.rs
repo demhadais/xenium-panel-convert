@@ -46,6 +46,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 #[derive(clap::Parser)]
+#[clap(version)]
 struct Cli {
     #[clap(subcommand)]
     command: Command,

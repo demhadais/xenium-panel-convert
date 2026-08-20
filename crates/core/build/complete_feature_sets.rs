@@ -13,7 +13,7 @@ use serde::{Deserialize, Deserializer};
 
 use crate::common::{parse_gene_list_from_csv, write_map_to_file};
 
-pub(crate) fn write_complete_feature_sets() -> anyhow::Result<()> {
+pub(crate) fn write_transcriptomes() -> anyhow::Result<()> {
     write_3p_gene_lists()?;
     write_flex_gene_lists()
 }
@@ -68,7 +68,7 @@ fn write_3p_gene_lists() -> anyhow::Result<()> {
     for (h5_path, expected_n_genes, map_name, map_path) in
         [grch38_2020_a, grch38_2024_a, mm10_2020_a, grcm39_2024_a]
     {
-        let (ensembl_ids, gene_names) = read_feature_set_from_h5(h5_path)?;
+        let (ensembl_ids, gene_names) = read_transcriptome_from_h5(h5_path)?;
 
         let map = construct_map(ensembl_ids.iter().zip(&gene_names), expected_n_genes);
 
@@ -151,7 +151,7 @@ fn write_flex_gene_lists() -> anyhow::Result<()> {
 
         let gene_map = construct_map(genes.iter().map(|(e, g)| (e, g)), expected_n_genes);
 
-        let map_path = format!("src/reference_dataset/feature_set/{map_path}");
+        let map_path = format!("src/reference_dataset/transcriptome/{map_path}");
         write_map_to_file(Path::new(&map_path), map_name, &gene_map)?;
     }
 
@@ -159,7 +159,7 @@ fn write_flex_gene_lists() -> anyhow::Result<()> {
 }
 
 fn create_map_path(filename: &str) -> PathBuf {
-    PathBuf::from(format!("src/reference_dataset/feature_set/{filename}"))
+    PathBuf::from(format!("src/reference_dataset/transcriptome/{filename}"))
 }
 
 // Human Ensembl IDs are 15 characters while mouse Ensembl IDs are 18
@@ -168,7 +168,7 @@ type EnsemblId = FixedAscii<18>;
 // No gene name is likely to exceed 32 characters
 type GeneName = FixedAscii<32>;
 
-fn read_feature_set_from_h5(file_path: &str) -> anyhow::Result<(Vec<EnsemblId>, Vec<GeneName>)> {
+fn read_transcriptome_from_h5(file_path: &str) -> anyhow::Result<(Vec<EnsemblId>, Vec<GeneName>)> {
     let file = hdf5_metno::File::open(file_path)?;
 
     let ensembl_ids = file

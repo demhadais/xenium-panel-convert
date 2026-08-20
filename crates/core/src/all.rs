@@ -30,7 +30,7 @@ pub fn validate_target_list_and_reference_dataset_compatibility(
     let mut warnings = Vec::with_capacity(target_list.len());
 
     for target in target_list.as_slice() {
-        match validate_gene_is_in_feature_set_with_correct_name(
+        match validate_gene_is_in_transcriptome_with_correct_name(
             target.gene(),
             reference_dataset,
             reference_dataset_transcriptome,
@@ -59,19 +59,19 @@ fn species_and_transcriptome_match(species: Species, transcriptome: Transcriptom
     )
 }
 
-fn validate_gene_is_in_feature_set_with_correct_name(
+fn validate_gene_is_in_transcriptome_with_correct_name(
     target: ValidGene,
     reference_dataset: &PseudoAnndata,
     reference_dataset_transcriptome: TranscriptomeName,
     reference_dataset_is_flex: bool,
 ) -> Result<(), TargetListReferenceDatasetCompatibilityWarningInner> {
-    let feature_set =
+    let transcriptome =
         Transcriptome::new(reference_dataset_transcriptome, reference_dataset_is_flex);
-    let feature_set = feature_set
+    let gene_map = transcriptome
         .gene_map(reference_dataset.features().len())
         .expect("if we have a PseudoAnndata, we know its features are exactly the transcriptome");
 
-    let gene_name_from_transcriptome = feature_set.get(target.ensembl_id.as_str()).ok_or(
+    let gene_name_from_transcriptome = gene_map.get(target.ensembl_id.as_str()).ok_or(
         TargetListReferenceDatasetCompatibilityWarningInner::TargetNotInReferenceDataset {
             gene: target,
             transcriptome: reference_dataset_transcriptome,
