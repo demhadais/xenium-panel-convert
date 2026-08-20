@@ -44,11 +44,9 @@ missing-debug-implementations = "warn"
 unnameable-types = "warn"
 unit-bindings = "warn"
 
-
 [profile]
 release = { lto = true, codegen-units = 1, strip = true }
 
 # The profile that 'dist' will build with
 [profile.dist]
 inherits = "release"
-lto = "thin"
